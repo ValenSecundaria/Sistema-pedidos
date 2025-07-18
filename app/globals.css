@@ -1,0 +1,47 @@
+/* globals.css */
+
+/* Base */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+  color: #2d3748; /* Chakra default gray.800 */
+  background: white;
+  margin: 0;
+  padding: 0;
+}
+
+/* Accesibilidad */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #3182ce; /* blue.600 */
+  outline-offset: 2px;
+}
+
+/* Impresión */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border: 1px solid #000;
+    padding: 8px;
+  }
+}
