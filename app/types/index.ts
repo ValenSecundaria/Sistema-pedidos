@@ -15,6 +15,7 @@ export interface Client {
   phone?: string
   address?: string
   name_business?: string
+  neighborhood?: string
 }
 
 export interface OrderItem {

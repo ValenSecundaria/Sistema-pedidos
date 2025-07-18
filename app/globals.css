@@ -1,29 +1,97 @@
-/* globals.css */
-
-/* Base */
+/* Reset y base styles optimizados para móvil */
 * {
   box-sizing: border-box;
-}
-
-body {
-  font-family: system-ui, sans-serif;
-  line-height: 1.6;
-  color: #2d3748; /* Chakra default gray.800 */
-  background: white;
   margin: 0;
   padding: 0;
 }
 
-/* Accesibilidad */
+html {
+  /* Prevenir zoom en iOS cuando se hace focus en inputs */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  color: #374151;
+  background: #f9fafb;
+  margin: 0;
+  padding: 0;
+  /* Mejorar renderizado de fuentes */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accesibilidad mejorada */
 button:focus,
 input:focus,
 select:focus,
-textarea:focus {
-  outline: 2px solid #3182ce; /* blue.600 */
+textarea:focus,
+[role="button"]:focus {
+  outline: 3px solid #1695e9;
   outline-offset: 2px;
 }
 
-/* Impresión */
+/* Mejorar contraste para enlaces */
+a {
+  color: #1695e9;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Optimizaciones para touch */
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  /* Área mínima de touch de 44px */
+  min-height: 44px;
+  min-width: 44px;
+  /* Prevenir selección de texto en botones */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Mejorar respuesta táctil */
+  -webkit-tap-highlight-color: rgba(22, 149, 233, 0.2);
+}
+
+/* Inputs optimizados para móvil */
+input,
+textarea,
+select {
+  /* Prevenir zoom en iOS */
+  font-size: 16px;
+  /* Mejorar apariencia en iOS */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Tablas responsive */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Utilidades para ocultar/mostrar en móvil */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Mejoras para impresión */
 @media print {
   .no-print {
     display: none !important;
@@ -32,6 +100,8 @@ textarea:focus {
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-size: 12pt;
+    line-height: 1.4;
   }
 
   table {
@@ -43,5 +113,108 @@ textarea:focus {
   td {
     border: 1px solid #000;
     padding: 8px;
+    text-align: left;
   }
+
+  th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+  }
+
+  /* Evitar saltos de página dentro de elementos */
+  tr,
+  img,
+  table,
+  blockquote {
+    page-break-inside: avoid;
+  }
+
+  /* Títulos siempre con su contenido */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+}
+
+/* Animaciones suaves para mejor UX */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Mejorar legibilidad en pantallas pequeñas */
+@media (max-width: 480px) {
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+  h2 {
+    font-size: 24px;
+  }
+  h3 {
+    font-size: 20px;
+  }
+  h4 {
+    font-size: 18px;
+  }
+}
+
+/* Estados de carga */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Mejoras para formularios */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Espaciado consistente */
+.container-mobile {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 768px) {
+  .container-mobile {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* Mejoras para accesibilidad de color */
+.text-success {
+  color: #059669;
+}
+.text-error {
+  color: #dc2626;
+}
+.text-warning {
+  color: #d97706;
+}
+.text-info {
+  color: #1695e9;
+}
+
+/* Sombras suaves para mejor jerarquía visual */
+.card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
