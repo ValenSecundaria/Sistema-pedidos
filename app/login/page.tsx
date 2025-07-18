@@ -38,10 +38,12 @@ export default function LoginPage() {
       password,
     })
 
+    console.log("Respuesta de signIn:", result);
+
     if (result?.error) {
       setError("Email o contraseña incorrectos")
     } else {
-      router.push("/dashboard")
+      router.push("/")
     }
 
     setLoading(false)

@@ -14,6 +14,8 @@ export function useAuth() {
       password,
     })
 
+    console.log(result);
+
     if (result?.ok) {
       router.push("/") // Redireccionar al home
       return { success: true }
