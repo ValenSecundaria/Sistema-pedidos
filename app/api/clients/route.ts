@@ -2,30 +2,48 @@ export const runtime = 'nodejs';
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma"; 
 
-
-type ClientWithTipo = {
-  id: number
-  nombre_completo: string
-  tipo_cliente: { nombre: string }
-}
-
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const clients: ClientWithTipo[] = await prisma.cliente.findMany({
+    const url = new URL(req.url)
+    const page = parseInt(url.searchParams.get("page") || "1")
+    const limit = parseInt(url.searchParams.get("limit") || "20")
+
+    if (page < 1 || limit < 1) {
+      return NextResponse.json({ message: "Parámetros inválidos" }, { status: 400 })
+    }
+
+    const skip = (page - 1) * limit
+
+    const totalClients = await prisma.cliente.count()
+
+    const clients = await prisma.cliente.findMany({
+      skip,
+      take: limit,
       select: {
         id: true,
         nombre_completo: true,
         tipo_cliente: { select: { nombre: true } },
+        numero_celular: true,
+        direccion_completa: true,
+        nombre_negocio: true,
+        barrio: true,
       },
+      orderBy: { nombre_completo: "asc" },
     })
 
     const payload = clients.map((c) => ({
       id: c.id.toString(),
       name: c.nombre_completo,
-      type: c.tipo_cliente.nombre.toLowerCase() as "Normal" | "Premium",
+      type: c.tipo_cliente.nombre.toLowerCase() === "premium" ? "Premium" : "Normal",
+      phone: c.numero_celular || "-",
+      address: c.direccion_completa || "-",
+      name_business: c.nombre_negocio || "-",
+      neighborhood: c.barrio || "-",
     }))
 
-    return NextResponse.json(payload)
+    const totalPages = Math.ceil(totalClients / limit)
+
+    return NextResponse.json({ clients: payload, page, totalPages })
   } catch (error) {
     console.error("Error fetching clients:", error)
     return NextResponse.json(
@@ -34,6 +52,7 @@ export async function GET() {
     )
   }
 }
+
 
 export async function POST(req: Request) {
   try {

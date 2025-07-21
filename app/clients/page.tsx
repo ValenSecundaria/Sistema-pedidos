@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import {
   VStack,
   Button,
@@ -33,6 +31,10 @@ import { Layout } from "../components/layout"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(false)
+
   const [formData, setFormData] = useState({
     name: "",
     type: "Normal" as Client["type"],
@@ -46,6 +48,7 @@ export default function ClientsPage() {
 
   const isMobile = useBreakpointValue({ base: true, md: false })
 
+  // Validación formulario
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -65,6 +68,29 @@ export default function ClientsPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  // Fetch clientes con paginación
+  const fetchClients = async (pageNumber: number) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/clients?page=${pageNumber}&limit=5`)
+      if (!res.ok) throw new Error("Error al cargar clientes")
+      const data = await res.json()
+      setClients(data.clients)
+      setPage(data.page)
+      setTotalPages(data.totalPages)
+    } catch (error) {
+      console.error("Error cargando clientes:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Cargar clientes al montar y cuando cambie la página
+  React.useEffect(() => {
+    fetchClients(page)
+  }, [page])
+
+  // Agregar cliente nuevo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -92,10 +118,10 @@ export default function ClientsPage() {
         throw new Error("Error al crear el cliente")
       }
 
-      const createdClient: Client = await res.json()
-      setClients([...clients, createdClient])
+      // Refrescar lista desde backend para incluir paginación correcta
+      fetchClients(1)
 
-      // Limpiar
+      // Limpiar formulario
       setFormData({
         name: "",
         type: "Normal",
@@ -105,6 +131,7 @@ export default function ClientsPage() {
         neighborhood: "",
       })
       setErrors({})
+      setPage(1) // volver a primera página para ver nuevo cliente
     } catch (error) {
       console.error("Error creando cliente:", error)
     } finally {
@@ -112,6 +139,13 @@ export default function ClientsPage() {
     }
   }
 
+  // Paginación controles
+  const handleNextPage = () => {
+    if (page < totalPages) setPage(page + 1)
+  }
+  const handlePrevPage = () => {
+    if (page > 1) setPage(page - 1)
+  }
 
   return (
     <ProtectedRoute>
@@ -135,12 +169,18 @@ export default function ClientsPage() {
                           📋 Información Obligatoria
                         </Heading>
 
-                        <HStack w="full" spacing={4} flexDirection={{ base: "column", md: "row" }}>
+                        <HStack
+                          w="full"
+                          spacing={4}
+                          flexDirection={{ base: "column", md: "row" }}
+                        >
                           <FormControl isRequired isInvalid={!!errors.name}>
                             <FormLabel>Nombre Completo</FormLabel>
                             <Input
                               value={formData.name}
-                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({ ...formData, name: e.target.value })
+                              }
                               placeholder="Ej: Juan Pérez"
                               bg="white"
                             />
@@ -151,7 +191,12 @@ export default function ClientsPage() {
                             <FormLabel>Tipo de Cliente</FormLabel>
                             <Select
                               value={formData.type}
-                              onChange={(e) => setFormData({ ...formData, type: e.target.value as Client["type"] })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  type: e.target.value as Client["type"],
+                                })
+                              }
                               bg="white"
                             >
                               <option value="Normal">Cliente Normal</option>
@@ -164,7 +209,9 @@ export default function ClientsPage() {
                           <FormLabel>Número de Celular</FormLabel>
                           <Input
                             value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={(e) =>
+                              setFormData({ ...formData, phone: e.target.value })
+                            }
                             placeholder="Ej: 1234567890"
                             type="tel"
                             bg="white"
@@ -176,7 +223,9 @@ export default function ClientsPage() {
                           <FormLabel>Dirección Completa</FormLabel>
                           <Input
                             value={formData.address}
-                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            onChange={(e) =>
+                              setFormData({ ...formData, address: e.target.value })
+                            }
                             placeholder="Ej: Calle 123 #45-67"
                             bg="white"
                           />
@@ -194,12 +243,18 @@ export default function ClientsPage() {
                           📝 Información Opcional
                         </Heading>
 
-                        <HStack w="full" spacing={4} flexDirection={{ base: "column", md: "row" }}>
+                        <HStack
+                          w="full"
+                          spacing={4}
+                          flexDirection={{ base: "column", md: "row" }}
+                        >
                           <FormControl>
                             <FormLabel>Nombre del Negocio</FormLabel>
                             <Input
                               value={formData.name_business}
-                              onChange={(e) => setFormData({ ...formData, name_business: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({ ...formData, name_business: e.target.value })
+                              }
                               placeholder="Ej: Tienda El Buen Precio"
                               bg="white"
                             />
@@ -209,7 +264,9 @@ export default function ClientsPage() {
                             <FormLabel>Barrio</FormLabel>
                             <Input
                               value={formData.neighborhood}
-                              onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({ ...formData, neighborhood: e.target.value })
+                              }
                               placeholder="Ej: Centro, La Candelaria"
                               bg="white"
                             />
@@ -243,7 +300,11 @@ export default function ClientsPage() {
               </Heading>
             </CardHeader>
             <CardBody>
-              {clients.length === 0 ? (
+              {loading ? (
+                <Text textAlign="center" py={8} fontSize="xl">
+                  Cargando clientes...
+                </Text>
+              ) : clients.length === 0 ? (
                 <VStack spacing={4} py={8}>
                   <Text fontSize="48px">👤</Text>
                   <Text fontSize="xl" color="gray.500" textAlign="center">
@@ -256,105 +317,151 @@ export default function ClientsPage() {
               ) : (
                 <>
                   {isMobile ? (
-                    // Vista móvil: Cards
-                    <VStack spacing={4}>
-                      {clients.map((client) => (
-                        <Card key={client.id} w="full" borderWidth="1px">
-                          <CardBody>
-                            <VStack align="start" spacing={3}>
-                              <HStack justify="space-between" w="full">
-                                <Heading size="md" color="orange.600">
-                                  {client.name}
-                                </Heading>
-                                <Text
-                                  fontSize="sm"
-                                  px={2}
-                                  py={1}
-                                  bg={client.type === "Premium" ? "blue.100" : "gray.100"}
-                                  color={client.type === "Premium" ? "blue.700" : "gray.700"}
-                                  borderRadius="md"
-                                  fontWeight="600"
-                                >
-                                  {client.type === "Premium" ? "Premium" : "NORMAL"}
-                                </Text>
-                              </HStack>
+                    <>
+                      {/* Vista móvil: Cards */}
+                      <VStack spacing={4}>
+                        {clients.map((client) => (
+                          <Card key={client.id} w="full" borderWidth="1px">
+                            <CardBody>
+                              <VStack align="start" spacing={3}>
+                                <HStack justify="space-between" w="full">
+                                  <Heading size="md" color="orange.600">
+                                    {client.name}
+                                  </Heading>
+                                  <Text
+                                    fontSize="sm"
+                                    px={2}
+                                    py={1}
+                                    bg={client.type === "Premium" ? "blue.100" : "gray.100"}
+                                    color={client.type === "Premium" ? "blue.700" : "gray.700"}
+                                    borderRadius="md"
+                                    fontWeight="600"
+                                  >
+                                    {client.type === "Premium" ? "Premium" : "NORMAL"}
+                                  </Text>
+                                </HStack>
 
-                              <VStack align="start" spacing={2} w="full">
-                                <HStack>
-                                  <Text fontSize="lg" fontWeight="600">
-                                    📱
-                                  </Text>
-                                  <Text fontSize="lg">{client.phone}</Text>
-                                </HStack>
-                                <HStack align="start">
-                                  <Text fontSize="lg" fontWeight="600">
-                                    📍
-                                  </Text>
-                                  <Text fontSize="lg">{client.address}</Text>
-                                </HStack>
-                                {client.name_business && (
+                                <VStack align="start" spacing={2} w="full">
                                   <HStack>
                                     <Text fontSize="lg" fontWeight="600">
-                                      🏪
+                                      📱
                                     </Text>
-                                    <Text fontSize="lg">{client.name_business}</Text>
+                                    <Text fontSize="lg">{client.phone}</Text>
                                   </HStack>
-                                )}
-                                {client.neighborhood && (
-                                  <HStack>
+                                  <HStack align="start">
                                     <Text fontSize="lg" fontWeight="600">
-                                      🏘️
+                                      📍
                                     </Text>
-                                    <Text fontSize="lg">{client.neighborhood}</Text>
+                                    <Text fontSize="lg">{client.address}</Text>
                                   </HStack>
-                                )}
+                                  {client.name_business && (
+                                    <HStack>
+                                      <Text fontSize="lg" fontWeight="600">
+                                        🏪
+                                      </Text>
+                                      <Text fontSize="lg">{client.name_business}</Text>
+                                    </HStack>
+                                  )}
+                                  {client.neighborhood && (
+                                    <HStack>
+                                      <Text fontSize="lg" fontWeight="600">
+                                        🏘️
+                                      </Text>
+                                      <Text fontSize="lg">{client.neighborhood}</Text>
+                                    </HStack>
+                                  )}
+                                </VStack>
                               </VStack>
-                            </VStack>
-                          </CardBody>
-                        </Card>
-                      ))}
-                    </VStack>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </VStack>
+
+                      {/* Paginación para móvil */}
+                      <HStack justify="center" spacing={4} mt={4}>
+                        <Button
+                          onClick={handlePrevPage}
+                          disabled={page === 1 || loading}
+                          colorScheme="orange"
+                        >
+                          Anterior
+                        </Button>
+                        <Text>
+                          Página {page} de {totalPages}
+                        </Text>
+                        <Button
+                          onClick={handleNextPage}
+                          disabled={page === totalPages || loading}
+                          colorScheme="orange"
+                        >
+                          Siguiente
+                        </Button>
+                      </HStack>
+                    </>
                   ) : (
-                    // Vista desktop: Tabla
-                    <TableContainer>
-                      <Table variant="simple">
-                        <Thead bg="gray.50">
-                          <Tr>
-                            <Th>Nombre</Th>
-                            <Th>Tipo</Th>
-                            <Th>Teléfono</Th>
-                            <Th>Dirección</Th>
-                            <Th>Negocio</Th>
-                            <Th>Barrio</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {clients.map((client) => (
-                            <Tr key={client.id}>
-                              <Td fontWeight="600">{client.name}</Td>
-                              <Td>
-                                <Text
-                                  fontSize="sm"
-                                  px={2}
-                                  py={1}
-                                  bg={client.type === "Premium" ? "blue.100" : "gray.100"}
-                                  color={client.type === "Premium" ? "blue.700" : "gray.700"}
-                                  borderRadius="md"
-                                  fontWeight="600"
-                                  textAlign="center"
-                                >
-                                  {client.type === "Premium" ? "Premium" : "NORMAL"}
-                                </Text>
-                              </Td>
-                              <Td>{client.phone}</Td>
-                              <Td>{client.address}</Td>
-                              <Td>{client.name_business || "-"}</Td>
-                              <Td>{client.neighborhood || "-"}</Td>
+                    <>
+                      {/* Vista escritorio: Tabla */}
+                      <TableContainer>
+                        <Table variant="simple">
+                          <Thead bg="gray.50">
+                            <Tr>
+                              <Th>Nombre</Th>
+                              <Th>Tipo</Th>
+                              <Th>Teléfono</Th>
+                              <Th>Dirección</Th>
+                              <Th>Negocio</Th>
+                              <Th>Barrio</Th>
                             </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
-                    </TableContainer>
+                          </Thead>
+                          <Tbody>
+                            {clients.map((client) => (
+                              <Tr key={client.id}>
+                                <Td fontWeight="600">{client.name}</Td>
+                                <Td>
+                                  <Text
+                                    fontSize="sm"
+                                    px={2}
+                                    py={1}
+                                    bg={client.type === "Premium" ? "blue.100" : "gray.100"}
+                                    color={client.type === "Premium" ? "blue.700" : "gray.700"}
+                                    borderRadius="md"
+                                    fontWeight="600"
+                                    textAlign="center"
+                                  >
+                                    {client.type === "Premium" ? "Premium" : "NORMAL"}
+                                  </Text>
+                                </Td>
+                                <Td>{client.phone}</Td>
+                                <Td>{client.address}</Td>
+                                <Td>{client.name_business || "-"}</Td>
+                                <Td>{client.neighborhood || "-"}</Td>
+                              </Tr>
+                            ))}
+                          </Tbody>
+                        </Table>
+                      </TableContainer>
+
+                      {/* Paginación para escritorio */}
+                      <HStack justify="center" spacing={4} mt={4}>
+                        <Button
+                          onClick={handlePrevPage}
+                          disabled={page === 1 || loading}
+                          colorScheme="orange"
+                        >
+                          Anterior
+                        </Button>
+                        <Text>
+                          Página {page} de {totalPages}
+                        </Text>
+                        <Button
+                          onClick={handleNextPage}
+                          disabled={page === totalPages || loading}
+                          colorScheme="orange"
+                        >
+                          Siguiente
+                        </Button>
+                      </HStack>
+                    </>
                   )}
                 </>
               )}
