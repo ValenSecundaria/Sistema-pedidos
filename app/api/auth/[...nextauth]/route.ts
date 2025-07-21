@@ -13,7 +13,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials): Promise<User | null> {
-        console.log("authorize - credentials recibidas:", credentials);
 
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Faltan credenciales");
@@ -49,7 +48,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      console.log("callback jwt:", { token, user });
+
       if (user) token.id = user.id;
       return token;
     },
@@ -60,7 +59,7 @@ export const authOptions: NextAuthOptions = {
       session: Session;
       token: JWT & { id?: string };
     }) {
-      console.log("callback session:", { session, token });
+
       if (session.user && token.id) {
         session.user.id = token.id;
       }

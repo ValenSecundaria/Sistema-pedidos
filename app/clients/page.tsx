@@ -28,18 +28,18 @@ import {
 } from "@chakra-ui/react"
 
 import { ProtectedRoute } from "../components/ProtectedRoute"
-import type { Client } from "../types"
+import type { Client, ClientInput } from "../types"
 import { Layout } from "../components/layout"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [formData, setFormData] = useState({
     name: "",
-    type: "normal" as Client["type"],
+    type: "Normal" as Client["type"],
     phone: "",
     address: "",
     name_business: "",
-    neighborhood: "", // Nuevo campo barrio
+    neighborhood: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -49,7 +49,6 @@ export default function ClientsPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    // Campos obligatorios
     if (!formData.name.trim()) {
       newErrors.name = "El nombre es obligatorio"
     }
@@ -69,14 +68,11 @@ export default function ClientsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setIsSubmitting(true)
 
-    const newClient: Client = {
-      id: Date.now().toString(),
+    const newClientInput: ClientInput = {
       name: formData.name.trim(),
       type: formData.type,
       phone: formData.phone.trim(),
@@ -85,27 +81,37 @@ export default function ClientsPage() {
       neighborhood: formData.neighborhood.trim() || undefined,
     }
 
-    // Stub de guardado
-    await fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newClient),
-    })
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newClientInput),
+      })
 
-    setClients([...clients, newClient])
+      if (!res.ok) {
+        throw new Error("Error al crear el cliente")
+      }
 
-    // Limpiar formulario
-    setFormData({
-      name: "",
-      type: "normal",
-      phone: "",
-      address: "",
-      name_business: "",
-      neighborhood: "",
-    })
-    setErrors({})
-    setIsSubmitting(false)
+      const createdClient: Client = await res.json()
+      setClients([...clients, createdClient])
+
+      // Limpiar
+      setFormData({
+        name: "",
+        type: "Normal",
+        phone: "",
+        address: "",
+        name_business: "",
+        neighborhood: "",
+      })
+      setErrors({})
+    } catch (error) {
+      console.error("Error creando cliente:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
 
   return (
     <ProtectedRoute>
@@ -148,8 +154,8 @@ export default function ClientsPage() {
                               onChange={(e) => setFormData({ ...formData, type: e.target.value as Client["type"] })}
                               bg="white"
                             >
-                              <option value="normal">Cliente Normal</option>
-                              <option value="premium">Cliente Premium</option>
+                              <option value="Normal">Cliente Normal</option>
+                              <option value="Premium">Cliente Premium</option>
                             </Select>
                           </FormControl>
                         </HStack>
@@ -264,12 +270,12 @@ export default function ClientsPage() {
                                   fontSize="sm"
                                   px={2}
                                   py={1}
-                                  bg={client.type === "premium" ? "blue.100" : "gray.100"}
-                                  color={client.type === "premium" ? "blue.700" : "gray.700"}
+                                  bg={client.type === "Premium" ? "blue.100" : "gray.100"}
+                                  color={client.type === "Premium" ? "blue.700" : "gray.700"}
                                   borderRadius="md"
                                   fontWeight="600"
                                 >
-                                  {client.type === "premium" ? "PREMIUM" : "NORMAL"}
+                                  {client.type === "Premium" ? "Premium" : "NORMAL"}
                                 </Text>
                               </HStack>
 
@@ -331,13 +337,13 @@ export default function ClientsPage() {
                                   fontSize="sm"
                                   px={2}
                                   py={1}
-                                  bg={client.type === "premium" ? "blue.100" : "gray.100"}
-                                  color={client.type === "premium" ? "blue.700" : "gray.700"}
+                                  bg={client.type === "Premium" ? "blue.100" : "gray.100"}
+                                  color={client.type === "Premium" ? "blue.700" : "gray.700"}
                                   borderRadius="md"
                                   fontWeight="600"
                                   textAlign="center"
                                 >
-                                  {client.type === "premium" ? "PREMIUM" : "NORMAL"}
+                                  {client.type === "Premium" ? "Premium" : "NORMAL"}
                                 </Text>
                               </Td>
                               <Td>{client.phone}</Td>

@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model categoria_producto {
+  id       Int        @id @default(autoincrement())
+  nombre   String     @unique @db.VarChar(100)
+  producto producto[]
+}
+
+model cliente {
+  id                 Int          @id @default(autoincrement())
+  nombre_completo    String       @db.VarChar(100)
+  tipo_cliente_id    Int
+  numero_celular     String       @db.VarChar(20)
+  direccion_completa String
+  nombre_negocio     String?      @db.VarChar(100)
+  barrio             String?      @db.VarChar(100)
+  tipo_cliente       tipo_cliente @relation(fields: [tipo_cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pedido             pedido[]
+
+  @@index([tipo_cliente_id], map: "idx_cliente_tipo")
+}
+
+model detalle_pedido {
+  id              Int          @id @default(autoincrement())
+  pedido_id       Int
+  producto_id     Int
+  cantidad        Decimal      @db.Decimal(10, 2)
+  lista_precio_id Int
+  precio_unitario Decimal      @db.Decimal(10, 2)
+  subtotal        Decimal?     @default(dbgenerated("(cantidad * precio_unitario)")) @db.Decimal(10, 2)
+  lista_precio    lista_precio @relation(fields: [lista_precio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pedido          pedido       @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  producto        producto     @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([pedido_id], map: "idx_detalle_pedido_pedid")
+  @@index([producto_id], map: "idx_detalle_pedido_producto")
+}
+
+model estado_pedido {
+  id     Int      @id @default(autoincrement())
+  nombre String   @unique @db.VarChar(50)
+  pedido pedido[]
+}
+
+model lista_precio {
+  id              Int               @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(50)
+  detalle_pedido  detalle_pedido[]
+  precio_producto precio_producto[]
+}
+
+model pedido {
+  id               Int              @id @default(autoincrement())
+  cliente_id       Int
+  fecha            DateTime         @default(now()) @db.Timestamp(6)
+  observaciones    String?
+  estado_pedido_id Int?
+  detalle_pedido   detalle_pedido[]
+  cliente          cliente          @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  estado_pedido    estado_pedido?   @relation(fields: [estado_pedido_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  remito           remito?
+
+  @@index([cliente_id], map: "idx_pedido_cliente")
+}
+
+model precio_producto {
+  id              Int          @id @default(autoincrement())
+  producto_id     Int
+  tipo_cliente_id Int
+  lista_precio_id Int
+  precio          Decimal      @db.Decimal(10, 2)
+  lista_precio    lista_precio @relation(fields: [lista_precio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  producto        producto     @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tipo_cliente    tipo_cliente @relation(fields: [tipo_cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([producto_id, tipo_cliente_id, lista_precio_id])
+}
+
+model producto {
+  id                 Int                 @id @default(autoincrement())
+  nombre             String              @db.VarChar(100)
+  descripcion        String?
+  unidad_medida      String?             @db.VarChar(20)
+  categoria_id       Int?
+  stock              Decimal?            @db.Decimal(10, 2)
+  precio_unitario    Decimal             @db.Decimal(10, 2)
+  detalle_pedido     detalle_pedido[]
+  precio_producto    precio_producto[]
+  categoria_producto categoria_producto? @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([categoria_id], map: "idx_producto_categoria")
+  @@index([precio_unitario], map: "idx_producto_precio_unitario")
+}
+
+model remito {
+  id            Int      @id @default(autoincrement())
+  pedido_id     Int      @unique
+  fecha_emision DateTime @default(now()) @db.Timestamp(6)
+  observaciones String?
+  pedido        pedido   @relation(fields: [pedido_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tipo_cliente {
+  id              Int               @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(50)
+  cliente         cliente[]
+  precio_producto precio_producto[]
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   VStack,
   HStack,
@@ -30,7 +30,6 @@ import {
 } from "@chakra-ui/react"
 import { useRouter } from "next/navigation"
 
-
 import { Layout } from "@/app/components/layout"
 import { ProtectedRoute } from "@/app/components/ProtectedRoute"
 import { Client, Order, OrderItem, Product } from "@/app/types"
@@ -50,7 +49,7 @@ export default function NewOrderPage() {
     saleType: "lista1" as OrderItem["saleType"],
   })
 
-  // Mock data - en producción vendría del estado global o API
+  // Productos (mock)
   const [products] = useState<Product[]>([
     {
       id: "1",
@@ -72,10 +71,34 @@ export default function NewOrderPage() {
     },
   ])
 
-  const [clients] = useState<Client[]>([
-    { id: "1", name: "Cliente A", type: "normal" },
-    { id: "2", name: "Cliente B", type: "premium" },
-  ])
+  // Clientes desde API
+  const [clients, setClients] = useState<Client[]>([])
+  const [loadingClients, setLoadingClients] = useState(true)
+  const [clientsError, setClientsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch("/api/clients")
+      .then((res) => {
+        if (!res.ok) throw new Error("Error al cargar clientes")
+        return res.json()
+      })
+      .then((data: { id: string; nombre_completo: string; tipo: string }[]) => {
+        // Ajustamos al tipo Client
+        const loaded = data.map((c) => ({
+          id: c.id,
+          name: c.nombre_completo,
+          type: c.tipo as Client["type"],
+        }))
+        setClients(loaded)
+      })
+      .catch((err) => {
+        console.error(err)
+        setClientsError(err.message)
+      })
+      .finally(() => {
+        setLoadingClients(false)
+      })
+  }, [])
 
   const addItem = () => {
     if (currentItem.productId) {
@@ -94,7 +117,8 @@ export default function NewOrderPage() {
       if (!product) return total
 
       const client = clients.find((c) => c.id === selectedClient)
-      const price = client?.type === "premium" ? product.pricePremium : product.priceNormal
+      const price =
+        client?.type === "premium" ? product.pricePremium : product.priceNormal
 
       return total + price * item.quantity
     }, 0)
@@ -109,20 +133,20 @@ export default function NewOrderPage() {
       subtotalItems: orderItems.map((item) => {
         const product = products.find((p) => p.id === item.productId)!
         const client = clients.find((c) => c.id === selectedClient)!
-        const price = client.type === "premium" ? product.pricePremium : product.priceNormal
+        const price =
+          client.type === "premium" ? product.pricePremium : product.priceNormal
         return price * item.quantity
       }),
       total: calculateTotal(),
     }
 
-    // Stub de guardado
     await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(order),
     })
 
-    // Guardar en localStorage para la demo
+    // Demo: guardar en localStorage
     const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]")
     savedOrders.push(order)
     localStorage.setItem("orders", JSON.stringify(savedOrders))
@@ -148,17 +172,23 @@ export default function NewOrderPage() {
                 <VStack spacing={4}>
                   <FormControl>
                     <FormLabel>Cliente Existente</FormLabel>
-                    <Select
-                      value={selectedClient}
-                      onChange={(e) => setSelectedClient(e.target.value)}
-                      placeholder="Seleccionar cliente..."
-                    >
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name} ({client.type})
-                        </option>
-                      ))}
-                    </Select>
+                    {loadingClients ? (
+                      <Text>Cargando clientes…</Text>
+                    ) : clientsError ? (
+                      <Text color="red.500">Error: {clientsError}</Text>
+                    ) : (
+                      <Select
+                        value={selectedClient}
+                        onChange={(e) => setSelectedClient(e.target.value)}
+                        placeholder="Seleccionar cliente..."
+                      >
+                        {clients.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name} ({client.type})
+                          </option>
+                        ))}
+                      </Select>
+                    )}
                   </FormControl>
 
                   <Divider />
@@ -170,7 +200,12 @@ export default function NewOrderPage() {
                       <FormLabel>Nombre</FormLabel>
                       <Input
                         value={newClientData.name}
-                        onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewClientData({
+                            ...newClientData,
+                            name: e.target.value,
+                          })
+                        }
                       />
                     </FormControl>
 
@@ -178,7 +213,12 @@ export default function NewOrderPage() {
                       <FormLabel>Tipo</FormLabel>
                       <Select
                         value={newClientData.type}
-                        onChange={(e) => setNewClientData({ ...newClientData, type: e.target.value as Client["type"] })}
+                        onChange={(e) =>
+                          setNewClientData({
+                            ...newClientData,
+                            type: e.target.value as Client["type"],
+                          })
+                        }
                       >
                         <option value="normal">Normal</option>
                         <option value="premium">Premium</option>
@@ -186,7 +226,11 @@ export default function NewOrderPage() {
                     </FormControl>
                   </HStack>
 
-                  <Button w="full" onClick={() => setStep(2)} isDisabled={!selectedClient && !newClientData.name}>
+                  <Button
+                    w="full"
+                    onClick={() => setStep(2)}
+                    isDisabled={!selectedClient && !newClientData.name}
+                  >
                     Continuar
                   </Button>
                 </VStack>
@@ -213,7 +257,12 @@ export default function NewOrderPage() {
                     <FormLabel>Producto</FormLabel>
                     <Select
                       value={currentItem.productId}
-                      onChange={(e) => setCurrentItem({ ...currentItem, productId: e.target.value })}
+                      onChange={(e) =>
+                        setCurrentItem({
+                          ...currentItem,
+                          productId: e.target.value,
+                        })
+                      }
                       placeholder="Seleccionar producto..."
                     >
                       {products.map((product) => (
@@ -228,7 +277,12 @@ export default function NewOrderPage() {
                     <FormLabel>Cantidad</FormLabel>
                     <NumberInput
                       value={currentItem.quantity}
-                      onChange={(_, value) => setCurrentItem({ ...currentItem, quantity: value || 1 })}
+                      onChange={(_, value) =>
+                        setCurrentItem({
+                          ...currentItem,
+                          quantity: value || 1,
+                        })
+                      }
                       min={1}
                     >
                       <NumberInputField />
@@ -240,7 +294,12 @@ export default function NewOrderPage() {
                   <FormLabel>Tipo de Lista</FormLabel>
                   <RadioGroup
                     value={currentItem.saleType}
-                    onChange={(value) => setCurrentItem({ ...currentItem, saleType: value as OrderItem["saleType"] })}
+                    onChange={(value) =>
+                      setCurrentItem({
+                        ...currentItem,
+                        saleType: value as OrderItem["saleType"],
+                      })
+                    }
                   >
                     <Stack direction="row">
                       <Radio value="lista1">Lista 1</Radio>
@@ -274,9 +333,16 @@ export default function NewOrderPage() {
                     </Thead>
                     <Tbody>
                       {orderItems.map((item, index) => {
-                        const product = products.find((p) => p.id === item.productId)!
-                        const client = clients.find((c) => c.id === selectedClient)!
-                        const price = client.type === "premium" ? product.pricePremium : product.priceNormal
+                        const product = products.find(
+                          (p) => p.id === item.productId
+                        )!
+                        const client = clients.find(
+                          (c) => c.id === selectedClient
+                        )!
+                        const price =
+                          client.type === "premium"
+                            ? product.pricePremium
+                            : product.priceNormal
                         const subtotal = price * item.quantity
 
                         return (
@@ -299,7 +365,11 @@ export default function NewOrderPage() {
                 </Text>
 
                 <HStack mt={6}>
-                  <Button variant="ghost" onClick={() => setStep(1)} w="full">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setStep(1)}
+                    w="full"
+                  >
                     Volver
                   </Button>
                   <Button onClick={saveOrder} w="full">

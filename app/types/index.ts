@@ -8,14 +8,17 @@ export interface Product {
   saleType: "lista1" | "lista2"
 }
 
-export interface Client {
-  id: string
+export interface ClientInput {
   name: string
-  type: "normal" | "premium"
+  type: "Normal" | "Premium"
   phone?: string
   address?: string
   name_business?: string
   neighborhood?: string
+}
+
+export interface Client extends ClientInput {
+  id: string
 }
 
 export interface OrderItem {
