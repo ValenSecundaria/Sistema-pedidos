@@ -2,10 +2,10 @@ export interface Product {
   id: string
   name: string
   description: string
-  category: "carpeta1" | "carpeta2" | "carpeta3"
+  category: string
   priceNormal: number
   pricePremium: number
-  saleType: "lista1" | "lista2"
+  saleType: string
 }
 
 export interface ClientInput {
@@ -40,3 +40,17 @@ export interface AuthUser {
   email: string
   token: string
 }
+
+export interface Category {
+  id: number
+  nombre: string
+}
+
+export interface RawProduct {
+  id: number | string
+  name: string
+  description?: string | null
+  category?: string | null
+  priceNormal: number
+}
+

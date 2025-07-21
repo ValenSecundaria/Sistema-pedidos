@@ -118,7 +118,7 @@ export default function NewOrderPage() {
 
       const client = clients.find((c) => c.id === selectedClient)
       const price =
-        client?.type === "premium" ? product.pricePremium : product.priceNormal
+        client?.type === "Premium" ? product.pricePremium : product.priceNormal
 
       return total + price * item.quantity
     }, 0)
@@ -134,7 +134,7 @@ export default function NewOrderPage() {
         const product = products.find((p) => p.id === item.productId)!
         const client = clients.find((c) => c.id === selectedClient)!
         const price =
-          client.type === "premium" ? product.pricePremium : product.priceNormal
+          client.type === "Premium" ? product.pricePremium : product.priceNormal
         return price * item.quantity
       }),
       total: calculateTotal(),
@@ -340,7 +340,7 @@ export default function NewOrderPage() {
                           (c) => c.id === selectedClient
                         )!
                         const price =
-                          client.type === "premium"
+                          client.type === "Premium"
                             ? product.pricePremium
                             : product.priceNormal
                         const subtotal = price * item.quantity
