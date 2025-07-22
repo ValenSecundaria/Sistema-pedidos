@@ -45,10 +45,11 @@ export default function ClientsPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [clientTypes, setClientTypes] = useState<{ id: number; nombre: string }[]>([])
+
 
   const isMobile = useBreakpointValue({ base: true, md: false })
 
-  // Validación formulario
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -68,7 +69,23 @@ export default function ClientsPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  // Fetch clientes con paginación
+
+  React.useEffect(() => {
+    const fetchClientTypes = async () => {
+      try {
+        const res = await fetch("/api/clients-types")
+        const data = await res.json()
+        console.log("Tipos de cliente cargados:", data)
+        setClientTypes(data)
+      } catch (err) {
+        console.error("Error cargando tipos de cliente:", err)
+      }
+    }
+
+    fetchClientTypes()  
+  }, [])
+
+
   const fetchClients = async (pageNumber: number) => {
     setLoading(true)
     try {
@@ -85,12 +102,10 @@ export default function ClientsPage() {
     }
   }
 
-  // Cargar clientes al montar y cuando cambie la página
   React.useEffect(() => {
     fetchClients(page)
   }, [page])
 
-  // Agregar cliente nuevo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -198,9 +213,13 @@ export default function ClientsPage() {
                                 })
                               }
                               bg="white"
+                              placeholder="Seleccionar tipo"
                             >
-                              <option value="Normal">Cliente Normal</option>
-                              <option value="Premium">Cliente Premium</option>
+                              {clientTypes.map((type) => (
+                                <option key={type.id} value={type.nombre}>
+                                  {type.nombre}
+                                </option>
+                              ))}
                             </Select>
                           </FormControl>
                         </HStack>

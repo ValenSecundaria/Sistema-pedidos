@@ -10,7 +10,7 @@ export interface Product {
 
 export interface ClientInput {
   name: string
-  type: "Normal" | "Premium"
+  type: string
   phone?: string
   address?: string
   name_business?: string
@@ -52,5 +52,10 @@ export interface RawProduct {
   description?: string | null
   category?: string | null
   priceNormal: number
+}
+
+export interface ClientType {
+  id: number
+  nombre: string
 }
 
