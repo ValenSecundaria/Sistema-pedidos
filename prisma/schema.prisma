@@ -35,7 +35,7 @@ model detalle_pedido {
   cantidad        Decimal      @db.Decimal(10, 2)
   lista_precio_id Int
   precio_unitario Decimal      @db.Decimal(10, 2)
-  subtotal        Decimal?     @default(dbgenerated("(cantidad * precio_unitario)")) @db.Decimal(10, 2)
+  subtotal Decimal? @db.Decimal(10, 2)
   lista_precio    lista_precio @relation(fields: [lista_precio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   pedido          pedido       @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   producto        producto     @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
