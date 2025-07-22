@@ -24,7 +24,7 @@ export interface Client extends ClientInput {
 export interface OrderItem {
   productId: string
   quantity: number
-  saleType?: "lista1" | "lista2"
+  saleType?: string
 }
 
 export interface Order {

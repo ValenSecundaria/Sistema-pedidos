@@ -52,7 +52,7 @@ export default function NewOrderPage() {
   const [currentItem, setCurrentItem] = useState<OrderItem>({
     productId: "",
     quantity: 1,
-    saleType: "lista1",
+    saleType: "",
   })
 
   // Clientes desde API
@@ -63,119 +63,92 @@ export default function NewOrderPage() {
   // Tipos de clientes desde API
   const [clientTypes, setClientTypes] = useState<ClientType[]>([])
   const [loadingTypes, setLoadingTypes] = useState(true)
-  const [typesError] = useState<string | null>(null)
+  const [typesError, setTypesError] = useState<string | null>(null)
 
+  // Productos desde API
   const [products, setProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(true)
-  const [productsError] = useState<string | null>(null)
+  const [productsError, setProductsError] = useState<string | null>(null)
 
+  // Listas de precios desde API
   const [priceLists, setPriceLists] = useState<{ id: number; nombre: string }[]>([])
 
   useEffect(() => {
-    setLoadingClients(true)
-    fetch("/api/clients-frecuent")
-      .then((res) => {
-        if (!res.ok) throw new Error("Error al cargar clientes")
-        return res.json()
-      })
-      .then((data: { clients: Client[] }) => {
-        setClients(data.clients)
-        setLoadingClients(false)
-      })
-      .catch((err) => {
-        console.error(err)
-        setClientsError(err.message)
-        setLoadingClients(false)
-      })
-  }, [])
-
-  useEffect(() => {
-      const fetchClientTypes = async () => {
-        try {
-          const res = await fetch("/api/clients-types")
-          const data = await res.json()
-          console.log("Tipos de cliente cargados:", data)
-          setClientTypes(data)
-          setLoadingTypes(false)
-        } catch (err) {
-          console.error("Error cargando tipos de cliente:", err)
-          setLoadingTypes(false)
-        }
-      }
-  
-      fetchClientTypes()  
-  }, [])
-
-  useEffect(() => {
-    const fetchProducts = async (page: number) => {
+    const fetchAllData = async () => {
+      // Inicializar estados de carga
+      setLoadingClients(true)
+      setLoadingTypes(true)
       setLoadingProducts(true)
-      try {
-        const res = await fetch(`/api/products?page=${page}&limit=10`)
-        if (res.ok) {
-          const data: { productos: RawProduct[]; totalPages: number; page: number } = await res.json()
-  
-          console.log("Respuesta completa de productos:", data)
-          console.log("Solo productos:", data.productos)
-  
-          // Verificamos shape:
-          if (data.productos.length > 0) {
-            console.log("Keys del primer producto:", Object.keys(data.productos[0]))
-            console.log("Primer producto crudo:", data.productos[0])
-          }
-  
-          // Transformación usando las claves exactas:
-          const transformedProducts: Product[] = data.productos.map(p => ({
-            id: String(p.id),
-            name: p.name,
-            description: p.description ?? "",
-            category: p.category ?? "",
-            priceNormal: typeof p.priceNormal === "number" ? p.priceNormal : 0,
-            pricePremium: 0,   // si luego quieres asignarle valor, cámbialo aquí
-            saleType: "",      // igual para saleType
-          }))
-  
-          console.log("Productos transformados:", transformedProducts)
-  
-          setProducts(transformedProducts)
 
-        } else {
-          console.error("Fetch falló con status", res.status)
+      try {
+        // Ejecutar todas las solicitudes en paralelo
+        const [clientsRes, clientTypesRes, productsRes, priceListsRes] = await Promise.all([
+          fetch("/api/clients-frecuent").then(res => res.ok ? res.json() : Promise.reject(new Error("Error al cargar clientes"))),
+          fetch("/api/clients-types").then(res => res.ok ? res.json() : Promise.reject(new Error("Error al cargar tipos de cliente"))),
+          fetch("/api/products?page=1&limit=10").then(res => res.ok ? res.json() : Promise.reject(new Error("Error al cargar productos"))),
+          fetch("/api/list_box").then(res => res.ok ? res.json() : Promise.reject(new Error("Error al cargar listas de precios")))
+        ])
+
+        // Procesar clientes
+        console.log("Clientes recibidos:", clientsRes)
+        setClients(clientsRes.clients)
+
+        // Procesar tipos de clientes
+        console.log("Tipos de cliente recibidos:", clientTypesRes)
+        setClientTypes(clientTypesRes)
+
+        // Procesar productos
+        console.log("Respuesta completa de productos:", productsRes)
+        console.log("Solo productos:", productsRes.productos)
+        if (productsRes.productos?.length > 0) {
+          console.log("Keys del primer producto:", Object.keys(productsRes.productos[0]))
+          console.log("Primer producto crudo:", productsRes.productos[0])
         }
+        const transformedProducts: Product[] = (productsRes.productos || []).map((p: RawProduct) => ({
+          id: String(p.id),
+          name: p.name || "Sin nombre",
+          description: p.description ?? "",
+          category: p.category ?? "",
+          priceNormal: typeof p.priceNormal === "number" ? p.priceNormal : 0,
+          pricePremium: typeof p.priceNormal === "number" ? p.priceNormal * 1.2 : 0,
+          saleType: "lista1",
+        }))
+        console.log("Productos transformados:", transformedProducts)
+        setProducts(transformedProducts)
+
+        // Procesar listas de precios
+        console.log("Listas de precios recibidas:", priceListsRes)
+        setPriceLists(priceListsRes)
       } catch (err) {
-        console.error("Error al obtener productos:", err)
+        console.error("Error al cargar datos:", err)
+        const errorMessage = err instanceof Error ? err.message : "Error desconocido"
+        if (errorMessage.includes("clientes")) setClientsError(errorMessage)
+        if (errorMessage.includes("tipos de cliente")) setTypesError(errorMessage)
+        if (errorMessage.includes("productos")) setProductsError(errorMessage)
+        // No hay estado de error para priceLists, pero podrías agregarlo si necesitas
       } finally {
+        setLoadingClients(false)
+        setLoadingTypes(false)
         setLoadingProducts(false)
       }
     }
 
-    fetchProducts(1);
-  }, []);
-
-  useEffect(() => {
-    const fetchPriceLists = async () => {
-      try {
-        const res = await fetch("/api/list_box")
-        if (!res.ok) throw new Error("Error al cargar listas de precios")
-        const data = await res.json()
-        setPriceLists(data)
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    fetchPriceLists()
+    fetchAllData()
   }, [])
 
   const addItem = () => {
-    if (currentItem.productId) {
-      setOrderItems([...orderItems, { ...currentItem }])
-      setCurrentItem({
-        productId: "",
-        quantity: 1,
-        saleType: "lista1",
-      })
-    }
+  if (!currentItem.productId || !currentItem.saleType) {
+    alert("Debes seleccionar un producto y un tipo de lista de precios.")
+    return
   }
+
+  setOrderItems([...orderItems, { ...currentItem }])
+  setCurrentItem({
+    productId: "",
+    quantity: 1,
+    saleType: "", // Reiniciar a vacío para forzar selección
+  })
+}
 
   const calculateTotal = () => {
     return orderItems.reduce((total, item) => {
