@@ -85,7 +85,7 @@ export default function HomePage() {
                       </HStack>
                       <Button
                         colorScheme="blue"
-                        onClick={() => router.push("/orders")}
+                        onClick={() => router.push("/orders/today")}
                         size="lg"
                         w="full"
                         h="60px"
@@ -109,7 +109,7 @@ export default function HomePage() {
                           Ver y gestionar pedidos realizados hoy
                         </Text>
                       </VStack>
-                      <Button colorScheme="blue" onClick={() => router.push("/orders")} size="lg" minW="140px" h="50px">
+                      <Button colorScheme="blue" onClick={() => router.push("/orders/today")} size="lg" minW="140px" h="50px">
                         Ver Pedidos
                       </Button>
                     </HStack>

@@ -1,3 +1,4 @@
+// app/orders/diarios/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,11 +16,11 @@ import {
   HStack,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { Layout } from '../components/layout';
-import { ProtectedRoute } from '../components/ProtectedRoute';
-import type { Order } from '../types';
+import { Layout } from '../../components/layout';
+import { ProtectedRoute } from '../../components/ProtectedRoute';
+import type { Order } from '../../types';
 
-export default function OrdersPage() {
+export default function DailyOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ export default function OrdersPage() {
   useEffect(() => {
     async function loadOrders() {
       try {
-        const res = await fetch('/api/orders');
+        const res = await fetch('/api/orders/today');
         if (!res.ok) throw new Error('Error en la respuesta del servidor');
         const data: Order[] = await res.json();
         setOrders(data);
@@ -37,7 +38,7 @@ export default function OrdersPage() {
         if (err instanceof Error) {
           setError(err.message);
         } else {
-          setError('Ocurrió un error desconocido');
+          setError('Error desconocido');
         }
       } finally {
         setLoading(false);
@@ -57,15 +58,15 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <Layout title="Pedidos">
-        <p>Cargando pedidos...</p>
+      <Layout title="Pedidos del Día">
+        <p>Cargando pedidos de hoy...</p>
       </Layout>
     );
   }
 
   if (error) {
     return (
-      <Layout title="Pedidos">
+      <Layout title="Pedidos del Día">
         <p>Error: {error}</p>
       </Layout>
     );
@@ -73,10 +74,14 @@ export default function OrdersPage() {
 
   return (
     <ProtectedRoute>
-      <Layout title="Pedidos">
+      <Layout title="Pedidos del Día">
         <VStack spacing={6} align="stretch">
           <HStack>
-            <Button onClick={() => router.push('/orders/new')} size="lg" colorScheme="green">
+            <Button
+              onClick={() => router.push('/orders/new')}
+              size="lg"
+              colorScheme="green"
+            >
               + Nuevo Pedido
             </Button>
           </HStack>
@@ -106,7 +111,9 @@ export default function OrdersPage() {
                     <Td>
                       <Button
                         size="sm"
-                        onClick={() => window.open(`/orders/${order.id}/print`, '_blank')}
+                        onClick={() =>
+                          window.open(`/orders/${order.id}/print`, '_blank')
+                        }
                       >
                         Imprimir
                       </Button>
@@ -119,8 +126,12 @@ export default function OrdersPage() {
 
           {orders.length === 0 && (
             <VStack spacing={4} py={8}>
-              <span>No hay pedidos registrados</span>
-              <Button onClick={() => router.push('/orders/new')} size="lg" colorScheme="green">
+              <span>No hay pedidos registrados hoy</span>
+              <Button
+                onClick={() => router.push('/orders/new')}
+                size="lg"
+                colorScheme="green"
+              >
                 Crear Primer Pedido
               </Button>
             </VStack>
