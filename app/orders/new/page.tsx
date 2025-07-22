@@ -164,46 +164,37 @@ export default function NewOrderPage() {
   }
 
   const saveOrder = async () => {
-    if (!selectedClient || orderItems.length === 0) return
+  if (!selectedClient || orderItems.length === 0) return
 
-    const order: Order = {
-      id: Date.now().toString(),
-      clientId: selectedClient,
-      items: orderItems,
-      dateCreated: new Date().toISOString(),
-      subtotalItems: orderItems.map((item) => {
-        const product = products.find((p) => p.id === item.productId)
-        if (!product) return 0
-        const client = clients.find((c) => c.id === selectedClient)
-        if (!client) return 0
-        const price = client.type === "Premium" ? product.pricePremium : product.priceNormal
-        return price * item.quantity
-      }),
-      total: calculateTotal(),
-    }
-
-    try {
-      await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(order),
-      })
-
-      // Demo: guardar en localStorage
-      const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]")
-      savedOrders.push(order)
-      localStorage.setItem("orders", JSON.stringify(savedOrders))
-
-      router.push("/orders")
-    } catch (error) {
-      console.error("Error al guardar el pedido:", error)
-    }
+  const order: Order = {
+    id: Date.now().toString(),
+    clientId: selectedClient,
+    items: orderItems,
+    dateCreated: new Date().toISOString(),
+    subtotalItems: orderItems.map((item) => {
+      const product = products.find((p) => p.id === item.productId)
+      const client = clients.find((c) => c.id === selectedClient)
+      if (!product || !client) return 0
+      const price = client.type === "Premium" ? product.pricePremium : product.priceNormal
+      return price * item.quantity
+    }),
+    total: calculateTotal(),
   }
 
-  const printOrder = () => {
-    const orderId = Date.now().toString()
-    window.open(`/orders/${orderId}/print`, "_blank")
+  try {
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "aspplication/json" },
+      body: JSON.stringify(order),
+    })
+
+    if (!res.ok) throw new Error("No se pudo guardar el pedido")
+
+    router.push("/orders")
+  } catch (error) {
+    console.error("Error al guardar el pedido:", error)
   }
+}
 
   if (step === 1) {
     return (
@@ -434,9 +425,6 @@ export default function NewOrderPage() {
                   </Button>
                   <Button onClick={saveOrder} w="full">
                     Guardar Pedido
-                  </Button>
-                  <Button onClick={printOrder} colorScheme="green" w="full">
-                    Imprimir
                   </Button>
                 </HStack>
               </Card>

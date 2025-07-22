@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 import {
   Box,
   VStack,
@@ -16,53 +16,80 @@ import {
   TableContainer,
   Divider,
   Button,
-} from "@chakra-ui/react"
+  Spinner,
+  Center,
+} from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
 
-// Definimos interfaces específicas para evitar usar 'any'
 interface OrderItemPrint {
-  name: string
-  quantity: number
-  price: number
-  subtotal: number
+  name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
 }
 
 interface ClientPrint {
-  name: string
-  address: string
+  name: string;
+  address: string;
 }
 
 interface OrderPrint {
-  id: string
-  client: ClientPrint
-  items: OrderItemPrint[]
-  total: number
-  date: string
+  id: string;
+  client: ClientPrint;
+  items: OrderItemPrint[];
+  total: number;
+  date: string;
 }
 
-export default function PrintOrderPage({ params }: { params: { id: string } }) {
-  const [order, setOrder] = useState<OrderPrint | null>(null)
+export default function PrintOrderPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [order, setOrder] = useState<OrderPrint | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    // En una app real, cargarías el pedido por ID
-    // Para la demo, usamos datos mock con el tipo definido
-    const mockOrder: OrderPrint = {
-      id: params.id,
-      client: { name: "Cliente Demo", address: "Dirección Demo" },
-      items: [
-        { name: "Producto A", quantity: 2, price: 100, subtotal: 200 },
-        { name: "Producto B", quantity: 1, price: 150, subtotal: 150 },
-      ],
-      total: 350,
-      date: new Date().toLocaleDateString("es-ES"),
-    }
-    setOrder(mockOrder)
-  }, [params.id])
+    console.log("Fetching order with ID:", params.id);
+    const fetchOrder = async () => {
+      setLoading(true);
+      const res = await fetch(`/api/orders/${params.id}/print`);
+      if (res.ok) {
+        const data: OrderPrint = await res.json();
+        setOrder(data);
+      } else {
+        console.error("Pedido no encontrado");
+      }
+      setLoading(false);
+    };
+    fetchOrder();
+  }, [params.id]);
 
   const handlePrint = () => {
-    window.print()
+    window.print();
+  };
+
+  if (loading) {
+    return (
+      <Center py={20}>
+        <Spinner size="xl" />
+      </Center>
+    );
   }
 
-  if (!order) return <div>Cargando...</div>
+  if (!order) {
+    return (
+      <Center py={20}>
+        <Text fontSize="xl" color="red.500">
+          No se encontró el pedido #{params.id}
+        </Text>
+        <Button mt={4} onClick={() => router.back()}>
+          Volver
+        </Button>
+      </Center>
+    );
+  }
 
   return (
     <Box p={8} maxW="800px" mx="auto" bg="white" minH="100vh">
@@ -106,35 +133,19 @@ export default function PrintOrderPage({ params }: { params: { id: string } }) {
             <Table variant="simple" size="lg">
               <Thead>
                 <Tr>
-                  <Th fontSize="md" borderColor="gray.400">
-                    Producto
-                  </Th>
-                  <Th fontSize="md" borderColor="gray.400" isNumeric>
-                    Cantidad
-                  </Th>
-                  <Th fontSize="md" borderColor="gray.400" isNumeric>
-                    Precio Unit.
-                  </Th>
-                  <Th fontSize="md" borderColor="gray.400" isNumeric>
-                    Subtotal
-                  </Th>
+                  <Th>Producto</Th>
+                  <Th isNumeric>Cantidad</Th>
+                  <Th isNumeric>Precio Unit.</Th>
+                  <Th isNumeric>Subtotal</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {order.items.map((item: OrderItemPrint, index: number) => (
-                  <Tr key={index}>
-                    <Td fontSize="md" borderColor="gray.300">
-                      {item.name}
-                    </Td>
-                    <Td fontSize="md" borderColor="gray.300" isNumeric>
-                      {item.quantity}
-                    </Td>
-                    <Td fontSize="md" borderColor="gray.300" isNumeric>
-                      ${item.price}
-                    </Td>
-                    <Td fontSize="md" borderColor="gray.300" isNumeric>
-                      ${item.subtotal}
-                    </Td>
+                {order.items.map((item, idx) => (
+                  <Tr key={idx}>
+                    <Td>{item.name}</Td>
+                    <Td isNumeric>{item.quantity}</Td>
+                    <Td isNumeric>${item.price.toFixed(2)}</Td>
+                    <Td isNumeric>${item.subtotal.toFixed(2)}</Td>
                   </Tr>
                 ))}
               </Tbody>
@@ -146,14 +157,12 @@ export default function PrintOrderPage({ params }: { params: { id: string } }) {
 
         {/* Total */}
         <HStack justify="flex-end">
-          <VStack align="end" spacing={2}>
-            <Text fontSize="2xl" fontWeight="bold">
-              TOTAL GENERAL: ${order.total}
-            </Text>
-          </VStack>
+          <Text fontSize="2xl" fontWeight="bold">
+            TOTAL GENERAL: ${order.total.toFixed(2)}
+          </Text>
         </HStack>
 
-        {/* Print Button - Hidden when printing */}
+        {/* Print Button */}
         <Box className="no-print" mt={8}>
           <Button onClick={handlePrint} size="lg" w="full" colorScheme="green">
             Imprimir Remito
@@ -161,6 +170,7 @@ export default function PrintOrderPage({ params }: { params: { id: string } }) {
         </Box>
       </VStack>
 
+      {/* Oculta el botón al imprimir */}
       <style jsx global>{`
         @media print {
           .no-print {
@@ -172,5 +182,5 @@ export default function PrintOrderPage({ params }: { params: { id: string } }) {
         }
       `}</style>
     </Box>
-  )
+  );
 }

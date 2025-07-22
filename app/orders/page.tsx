@@ -1,8 +1,9 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
 import {
   VStack,
+  HStack,
   Button,
   Table,
   Thead,
@@ -11,64 +12,105 @@ import {
   Th,
   Td,
   TableContainer,
-  Badge,
-  HStack,
-} from '@chakra-ui/react';
-import { useRouter } from 'next/navigation';
-import { Layout } from '../components/layout';
-import { ProtectedRoute } from '../components/ProtectedRoute';
-import type { Order } from '../types';
+  Spinner,
+  Center,
+  Text,
+} from '@chakra-ui/react'
+import { useRouter } from 'next/navigation'
+import { Layout } from '../components/layout'
+import { ProtectedRoute } from '../components/ProtectedRoute'
+
+type Order = {
+  id: string
+  clientId: string
+  dateCreated: string
+  total: number
+  estadoPedidoId: number
+  estadoPedidoName: string
+}
 
 export default function OrdersPage() {
-  const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // 1) carga inicial
+  const loadOrders = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/orders')
+      if (!res.ok) throw new Error('Error cargando pedidos')
+      setOrders(await res.json())
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error desconocido')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function loadOrders() {
-      try {
-        const res = await fetch('/api/orders');
-        if (!res.ok) throw new Error('Error en la respuesta del servidor');
-        const data: Order[] = await res.json();
-        setOrders(data);
-      } catch (err: unknown) {
-        console.error(err);
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError('Ocurrió un error desconocido');
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadOrders();
-  }, []);
+    loadOrders()
+  }, [])
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('es-ES', {
+  // 2) siguiente estado cíclico 1→2→3→1
+  const nextState = (cur: number) => (cur % 3) + 1
+
+  // 3) invocar PATCH a nuestra ruta app/api/orders/[id]
+  const changeState = async (o: Order) => {
+    const next = nextState(o.estadoPedidoId)
+    const res = await fetch(`/api/orders/${o.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stateId: next }),
+    })
+    if (res.ok) {
+      const upd = await res.json() as {
+        estadoPedidoId: number
+        estadoPedidoName: string
+      }
+      // actualizar localmente
+      setOrders(prev =>
+        prev.map(x =>
+          x.id === o.id
+            ? { ...x, estadoPedidoId: upd.estadoPedidoId, estadoPedidoName: upd.estadoPedidoName }
+            : x
+        )
+      )
+    } else {
+      console.error('No se pudo cambiar el estado')
+    }
+  }
+
+  const badgeColor = (id: number) =>
+    id === 1 ? 'yellow' : id === 2 ? 'green' : 'red'
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    });
+    })
 
   if (loading) {
     return (
       <Layout title="Pedidos">
-        <p>Cargando pedidos...</p>
+        <Center py={20}>
+          <Spinner size="xl" />
+        </Center>
       </Layout>
-    );
+    )
   }
-
   if (error) {
     return (
       <Layout title="Pedidos">
-        <p>Error: {error}</p>
+        <Center py={20}>
+          <Text color="red.500">Error: {error}</Text>
+        </Center>
       </Layout>
-    );
+    )
   }
 
   return (
@@ -76,7 +118,7 @@ export default function OrdersPage() {
       <Layout title="Pedidos">
         <VStack spacing={6} align="stretch">
           <HStack>
-            <Button onClick={() => router.push('/orders/new')} size="lg" colorScheme="green">
+            <Button size="lg" colorScheme="green" onClick={() => router.push('/orders/new')}>
               + Nuevo Pedido
             </Button>
           </HStack>
@@ -85,31 +127,39 @@ export default function OrdersPage() {
             <Table variant="simple" size="lg">
               <Thead>
                 <Tr>
-                  <Th fontSize="md">ID</Th>
-                  <Th fontSize="md">Cliente</Th>
-                  <Th fontSize="md">Fecha</Th>
-                  <Th fontSize="md">Total</Th>
-                  <Th fontSize="md">Estado</Th>
-                  <Th fontSize="md">Acciones</Th>
+                  <Th>ID</Th>
+                  <Th>Cliente</Th>
+                  <Th>Fecha</Th>
+                  <Th>Total</Th>
+                  <Th>Estado</Th>
+                  <Th>Acciones</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {orders.map((order) => (
-                  <Tr key={order.id}>
-                    <Td fontSize="md">#{order.id.slice(-6)}</Td>
-                    <Td fontSize="md">Cliente {order.clientId}</Td>
-                    <Td fontSize="md">{formatDate(order.dateCreated)}</Td>
-                    <Td fontSize="md">${order.total}</Td>
-                    <Td>
-                      <Badge colorScheme="green">Guardado</Badge>
-                    </Td>
+                {orders.map(o => (
+                  <Tr key={o.id}>
+                    <Td>#{o.id.slice(-6)}</Td>
+                    <Td>Cliente {o.clientId}</Td>
+                    <Td>{formatDate(o.dateCreated)}</Td>
+                    <Td>${o.total.toFixed(2)}</Td>
                     <Td>
                       <Button
                         size="sm"
-                        onClick={() => window.open(`/orders/${order.id}/print`, '_blank')}
+                        colorScheme={badgeColor(o.estadoPedidoId)}
+                        onClick={() => changeState(o)}
                       >
-                        Imprimir
+                        {o.estadoPedidoName}
                       </Button>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button
+                          size="sm"
+                          onClick={() => window.open(`/orders/${o.id}/print`, '_blank')}
+                        >
+                          Imprimir
+                        </Button>
+                      </HStack>
                     </Td>
                   </Tr>
                 ))}
@@ -118,15 +168,20 @@ export default function OrdersPage() {
           </TableContainer>
 
           {orders.length === 0 && (
-            <VStack spacing={4} py={8}>
-              <span>No hay pedidos registrados</span>
-              <Button onClick={() => router.push('/orders/new')} size="lg" colorScheme="green">
+            <Center py={10} flexDir="column">
+              <Text>No hay pedidos registrados</Text>
+              <Button
+                mt={4}
+                size="lg"
+                colorScheme="green"
+                onClick={() => router.push('/orders/new')}
+              >
                 Crear Primer Pedido
               </Button>
-            </VStack>
+            </Center>
           )}
         </VStack>
       </Layout>
     </ProtectedRoute>
-  );
+  )
 }
