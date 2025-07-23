@@ -31,7 +31,17 @@ export async function GET(req: Request) {
       orderBy: { nombre_completo: "asc" },
     })
 
-    const payload = clients.map((c) => ({
+    type ClientFromDb = {
+      id: number;
+      nombre_completo: string;
+      tipo_cliente: { nombre: string };
+      numero_celular: string | null;
+      direccion_completa: string | null;
+      nombre_negocio: string | null;
+      barrio: string | null;
+    };
+
+    const payload = clients.map((c: ClientFromDb) => ({
       id: c.id.toString(),
       name: c.nombre_completo,
       type: c.tipo_cliente.nombre.toLowerCase() === "premium" ? "Premium" : "Normal",

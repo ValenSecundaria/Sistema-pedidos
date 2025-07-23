@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from 'next/server';
 import prisma from "@/lib/prisma"
 
@@ -12,12 +14,12 @@ export async function GET() {
       orderBy: { fecha: 'desc' },
     })
 
-    const orders = pedidos.map(p => ({
+    const orders = pedidos.map((p: any) => ({
       id: p.id.toString(),
       clientId: p.cliente_id.toString(),
       dateCreated: p.fecha.toISOString(),
       total: p.detalle_pedido.reduce(
-        (sum, d) => sum + Number(d.cantidad) * Number(d.precio_unitario),
+        (sum: number, d: any) => sum + Number(d.cantidad) * Number(d.precio_unitario),
         0
       ),
       estadoPedidoId: p.estado_pedido?.id ?? 1,

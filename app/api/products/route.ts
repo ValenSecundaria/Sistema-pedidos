@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
@@ -19,7 +21,15 @@ export async function GET(req: Request) {
       orderBy: { id: "asc" },
     })
 
-    const formatted = productos.map((p) => ({
+    type ProductoWithCategoria = {
+      id: number;
+      nombre: string;
+      descripcion?: string | null;
+      precio_unitario: number | string;
+      categoria_producto?: { nombre: string } | null;
+    };
+
+    const formatted = productos.map((p: ProductoWithCategoria) => ({
       id: p.id.toString(),
       name: p.nombre,
       description: p.descripcion ?? "",

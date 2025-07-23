@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma" // Ajusta el path según tu estructura
 

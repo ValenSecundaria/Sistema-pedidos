@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import NextAuth, { NextAuthOptions, Session, User} from "next-auth";
 import type { JWT } from "next-auth/jwt";
 

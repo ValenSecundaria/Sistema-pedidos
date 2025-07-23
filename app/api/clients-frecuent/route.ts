@@ -1,3 +1,4 @@
+export const runtime = 'nodejs'
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
@@ -10,7 +11,7 @@ export async function GET() {
     const shuffledIds = allIds.sort(() => 0.5 - Math.random())
 
     // Tomar los primeros 10 IDs
-    const randomIds = shuffledIds.slice(0, 10).map(item => item.id)
+    const randomIds = shuffledIds.slice(0, 10).map((item: { id: number }) => item.id)
 
     // Obtener los detalles de los 10 clientes aleatorios
     const clients = await prisma.cliente.findMany({

@@ -1,4 +1,5 @@
-// app/api/orders/[id]/route.ts
+export const runtime = 'nodejs'
+
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
@@ -37,7 +38,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 })
     }
     const total = p.detalle_pedido.reduce(
-      (sum, d) => sum + Number(d.cantidad) * Number(d.precio_unitario),
+      (sum: number, d: { cantidad: number | string; precio_unitario: number | string }) =>
+        sum + Number(d.cantidad) * Number(d.precio_unitario),
       0
     )
     return NextResponse.json({

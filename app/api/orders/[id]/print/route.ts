@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -29,7 +31,12 @@ export async function GET(
         name: pedido.cliente.nombre_completo,
         address: pedido.cliente.direccion_completa,
       },
-      items: pedido.detalle_pedido.map((d) => ({
+      items: pedido.detalle_pedido.map((d: {
+        producto: { nombre: string };
+        cantidad: number | string;
+        precio_unitario: number | string;
+        subtotal?: number | string | null;
+      }) => ({
         name: d.producto.nombre,
         quantity: Number(d.cantidad),
         price: Number(d.precio_unitario),
@@ -39,7 +46,11 @@ export async function GET(
             : Number(d.cantidad) * Number(d.precio_unitario),
       })),
       total: pedido.detalle_pedido.reduce(
-        (sum, d) =>
+        (sum: number, d: {
+          cantidad: number | string;
+          precio_unitario: number | string;
+          subtotal?: number | string | null;
+        }) =>
           sum +
           (d.subtotal !== null && d.subtotal !== undefined
             ? Number(d.subtotal)
