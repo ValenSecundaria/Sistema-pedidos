@@ -38,8 +38,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 })
     }
     const total = p.detalle_pedido.reduce(
-      (sum: number, d: { cantidad: number | string; precio_unitario: number | string }) =>
-        sum + Number(d.cantidad) * Number(d.precio_unitario),
+      (sum: number, d: { cantidad: any; precio_unitario: any }) =>
+        sum +
+        (typeof d.cantidad === "object" && typeof d.cantidad.toNumber === "function"
+          ? d.cantidad.toNumber()
+          : Number(d.cantidad)) *
+        (typeof d.precio_unitario === "object" && typeof d.precio_unitario.toNumber === "function"
+          ? d.precio_unitario.toNumber()
+          : Number(d.precio_unitario)),
       0
     )
     return NextResponse.json({

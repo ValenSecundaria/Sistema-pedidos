@@ -31,12 +31,7 @@ export async function GET(
         name: pedido.cliente.nombre_completo,
         address: pedido.cliente.direccion_completa,
       },
-      items: pedido.detalle_pedido.map((d: {
-        producto: { nombre: string };
-        cantidad: number | string;
-        precio_unitario: number | string;
-        subtotal?: number | string | null;
-      }) => ({
+      items: pedido.detalle_pedido.map((d) => ({
         name: d.producto.nombre,
         quantity: Number(d.cantidad),
         price: Number(d.precio_unitario),
@@ -46,11 +41,7 @@ export async function GET(
             : Number(d.cantidad) * Number(d.precio_unitario),
       })),
       total: pedido.detalle_pedido.reduce(
-        (sum: number, d: {
-          cantidad: number | string;
-          precio_unitario: number | string;
-          subtotal?: number | string | null;
-        }) =>
+        (sum, d) =>
           sum +
           (d.subtotal !== null && d.subtotal !== undefined
             ? Number(d.subtotal)

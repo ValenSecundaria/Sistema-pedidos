@@ -25,23 +25,40 @@ export async function GET() {
   const start = now.startOf('day').toJSDate(); // 00:00 hora ARG
   const end = now.endOf('day').toJSDate();     // 23:59:59.999 hora ARG
 
-  const pedidosHoy: Pedido[] = await prisma.pedido.findMany({
+  const pedidosHoy = await prisma.pedido.findMany({
     where: { fecha: { gte: start, lte: end } },
     include: { cliente: true, detalle_pedido: true, estado_pedido: true },
     orderBy: { fecha: 'asc' },
   });
 
-  const orders = pedidosHoy.map((p: Pedido) => ({
+  const orders = pedidosHoy.map((p: any) => ({
     id: p.id.toString(),
     clientId: p.cliente_id.toString(),
     dateCreated: p.fecha.toISOString(),
-    items: p.detalle_pedido.map((d: DetallePedido) => ({
+    items: p.detalle_pedido.map((d: any) => ({
       productId: d.producto_id.toString(),
-      quantity: Number(d.cantidad),
+      quantity:
+        typeof d.cantidad === "object" && typeof d.cantidad.toNumber === "function"
+          ? d.cantidad.toNumber()
+          : Number(d.cantidad),
     })),
-    subtotalItems: p.detalle_pedido.map((d: DetallePedido) => Number(d.cantidad) * Number(d.precio_unitario)),
+    subtotalItems: p.detalle_pedido.map((d: any) =>
+      (typeof d.cantidad === "object" && typeof d.cantidad.toNumber === "function"
+        ? d.cantidad.toNumber()
+        : Number(d.cantidad)) *
+      (typeof d.precio_unitario === "object" && typeof d.precio_unitario.toNumber === "function"
+        ? d.precio_unitario.toNumber()
+        : Number(d.precio_unitario))
+    ),
     total: p.detalle_pedido.reduce(
-      (sum: number, d: DetallePedido) => sum + Number(d.cantidad) * Number(d.precio_unitario),
+      (sum: number, d: any) =>
+        sum +
+        ((typeof d.cantidad === "object" && typeof d.cantidad.toNumber === "function"
+          ? d.cantidad.toNumber()
+          : Number(d.cantidad)) *
+          (typeof d.precio_unitario === "object" && typeof d.precio_unitario.toNumber === "function"
+            ? d.precio_unitario.toNumber()
+            : Number(d.precio_unitario))),
       0
     ),
   }));
