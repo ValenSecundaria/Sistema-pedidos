@@ -25,7 +25,7 @@ export async function GET() {
     })
 
     // Mapear los datos al formato esperado por el frontend
-    const payload = clients.map((c) => ({
+    const payload = clients.map((c: { id: number; nombre_completo: string; tipo_cliente: { nombre: string } }) => ({
       id: c.id.toString(),
       name: c.nombre_completo,
       type: c.tipo_cliente.nombre.toLowerCase() === "premium" ? "Premium" : "Normal",

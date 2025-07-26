@@ -23,8 +23,11 @@ export interface Client extends ClientInput {
 
 export interface OrderItem {
   productId: string
-  quantity: number
+  quantity: number 
   saleType?: string
+}
+export type EditableOrderItem = Omit<OrderItem, "quantity"> & {
+  quantity: number | ""
 }
 
 export interface Order {

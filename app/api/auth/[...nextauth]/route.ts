@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
           id: "1",
           email: "mama@example.com",
           name: "Mom",
-          password: "12345678",
+          password: "Luismiguel1970",
         };
 
         if (
