@@ -24,6 +24,7 @@ model cliente {
   barrio             String?      @db.VarChar(100)
   tipo_cliente       tipo_cliente @relation(fields: [tipo_cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   pedido             pedido[]
+  frecuencia         Int          @default(0)
 
   @@index([tipo_cliente_id], map: "idx_cliente_tipo")
 }

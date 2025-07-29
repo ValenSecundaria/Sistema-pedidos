@@ -45,6 +45,7 @@ export function Layout({ children, title }: LayoutProps) {
     { label: "📋 Ver Pedidos", path: "/orders", color: "blue" },
     { label: "📦 Productos", path: "/products", color: "purple" },
     { label: "👥 Clientes", path: "/clients", color: "orange" },
+    { label: "🧾 Pedidos por Cliente", path: "/clients/orders", color: "teal" },
   ]
 
   const handleNavigation = (path: string) => {

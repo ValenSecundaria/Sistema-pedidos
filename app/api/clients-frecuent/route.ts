@@ -4,6 +4,35 @@ import prisma from "@/lib/prisma"
 
 export async function GET() {
   try {
+    // Obtener todos los clientes ordenados por nombre
+    const clients = await prisma.cliente.findMany({
+      select: {
+        id: true,
+        nombre_completo: true,
+        tipo_cliente: { select: { nombre: true } },
+      },
+      orderBy: { nombre_completo: "asc" },
+    })
+
+    // Mapear los datos al formato esperado por el frontend
+    const payload = clients.map((c: { id: number; nombre_completo: string; tipo_cliente: { nombre: string } }) => ({
+      id: c.id.toString(),
+      name: c.nombre_completo,
+      type: c.tipo_cliente.nombre.toLowerCase() === "premium" ? "Premium" : "Normal",
+    }))
+
+    return NextResponse.json({ clients: payload })
+  } catch (error) {
+    console.error("Error fetching clients:", error)
+    return NextResponse.json(
+      { message: "Error interno del servidor" },
+      { status: 500 }
+    )
+  }
+}
+/*
+export async function GET() {
+  try {
     // Obtener todos los IDs de los clientes
     const allIds = await prisma.cliente.findMany({ select: { id: true } })
 
@@ -40,3 +69,4 @@ export async function GET() {
     )
   }
 }
+*/
