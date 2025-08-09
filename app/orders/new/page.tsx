@@ -241,53 +241,7 @@
 
                     <Divider />
 
-                    <Heading size="sm">O crear nuevo cliente</Heading>
-
-                    <HStack w="full">
-                      <FormControl>
-                        <FormLabel>Nombre</FormLabel>
-                        <Input
-                          value={newClientData.name}
-                          onChange={(e) =>
-                            setNewClientData({
-                              ...newClientData,
-                              name: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Tipo</FormLabel>
-                        {loadingTypes ? (
-                          <Text>Cargando tipos de cliente…</Text>
-                        ) : typesError ? (
-                          <Text color="red.500">Error: {typesError}</Text>
-                        ) : (
-                          <Select
-                            value={newClientData.type}
-                            onChange={(e) =>
-                              setNewClientData({
-                                ...newClientData,
-                                type: e.target.value as Client["type"],
-                              })
-                            }
-                            placeholder="Seleccionar tipo de cliente..."
-                          >
-                            {clientTypes.map((type) => (
-                              <option key={type.id} value={type.nombre}>
-                                {type.nombre}
-                              </option>
-                            ))}
-                          </Select>
-                        )}
-                      </FormControl>
-                    </HStack>
-                    {typesError && (
-                      <Text color="red.500" mt={2}>
-                        Error cargando tipos de cliente: {typesError}
-                      </Text>
-                    )}
+                    
 
                     <Button
                       w="full"

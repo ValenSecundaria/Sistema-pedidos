@@ -95,6 +95,9 @@ type OrderUpdateApiResponse = {
   detalle_pedido: OrderDetailApi[]
 }
 
+// Respuesta cliente-nombre
+type ClientNameResp = { id: string; name: string }
+
 export default function OrdersPage(): JSX.Element {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
@@ -108,7 +111,9 @@ export default function OrdersPage(): JSX.Element {
   // edit modal
   const [isOpen, setIsOpen] = useState(false)
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null)
-  const [clienteId, setClienteId] = useState<string>('')
+  const [clienteId, setClienteId] = useState<string>('') // mantiene el id para el payload
+  const [clientName, setClientName] = useState<string>('') // nombre a mostrar
+  const [clientNameLoading, setClientNameLoading] = useState<boolean>(false)
   const [fecha, setFecha] = useState<string>('')
   const [observaciones, setObservaciones] = useState<string>('')
   const [details, setDetails] = useState<OrderDetailForm[]>([])
@@ -124,7 +129,8 @@ export default function OrdersPage(): JSX.Element {
   // responsive table size and button size
   const tableSize = useBreakpointValue<'sm' | 'md' | 'lg'>({ base: 'sm', md: 'lg', lg: 'lg' })
   const actionBtnSize = (useBreakpointValue({ base: 'xs', md: 'sm' }) ?? 'sm') as 'xs' | 'sm'
- // carga inicial de pedidos
+
+  // carga inicial de pedidos
   const loadOrders = async (): Promise<void> => {
     setLoading(true)
     try {
@@ -139,7 +145,9 @@ export default function OrdersPage(): JSX.Element {
     }
   }
 
-  useEffect(() => { loadOrders() }, [])
+  useEffect(() => {
+    loadOrders()
+  }, [])
 
   // obtener productos para selects (usa tu endpoint paginado en producción)
   const loadProducts = async (): Promise<void> => {
@@ -168,31 +176,105 @@ export default function OrdersPage(): JSX.Element {
     }
   }
 
-  useEffect(() => { loadProducts() }, [])
+  useEffect(() => {
+    loadProducts()
+  }, [])
 
   const badgeColor = (id: number) => (id === 1 ? 'yellow' : id === 2 ? 'green' : 'red')
 
-  const formatDate = (d: string) => new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+  // helper: fetch nombre del cliente por id (usa tu endpoint inmutable)
+  const fetchClientName = async (id: string) => {
+    if (!id) {
+      setClientName('')
+      return
+    }
+    setClientNameLoading(true)
+    try {
+      const res = await fetch(`/api/clients/client-name/${id}`)
+      if (!res.ok) {
+        // fallback a mostrar el id si no encuentra nombre
+        setClientName(`Cliente #${id}`)
+        return
+      }
+      const body = (await res.json()) as ClientNameResp
+      setClientName(body?.name ?? `Cliente #${id}`)
+    } catch (e) {
+      console.error('Error fetching client name:', e)
+      setClientName(`Cliente #${id}`)
+    } finally {
+      setClientNameLoading(false)
+    }
+  }
 
   // open edit modal: usa endpoint /api/orders/update/:id
   const openEditModal = async (orderId: string): Promise<void> => {
-    setFormError(null); setSaving(false); setEditingOrderId(orderId); setIsOpen(true)
+    setFormError(null)
+    setSaving(false)
+    setEditingOrderId(orderId)
+    setIsOpen(true)
+    setClientName('')
     try {
       const res = await fetch(`/api/orders/update/${orderId}`)
       if (!res.ok) throw new Error('No se pudo obtener los datos completos del pedido')
       const data = (await res.json()) as OrderUpdateApiResponse
+
+      // set cliente id (para payload)
       const clienteVal = data.cliente_id ?? undefined
       setClienteId(String(clienteVal ?? ''))
+
+      // traer nombre asociado al id (endpoint que tenés en producción)
+      if (clienteVal != null) {
+        await fetchClientName(String(clienteVal))
+      } else {
+        setClientName('')
+      }
+
+      // fecha -> input datetime-local
       const fechaVal = data.fecha ?? undefined
-      if (fechaVal) { const d = new Date(fechaVal); const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000); setFecha(local.toISOString().slice(0,16)) } else setFecha('')
+      if (fechaVal) {
+        const d = new Date(fechaVal)
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+        setFecha(local.toISOString().slice(0, 16))
+      } else setFecha('')
+
       setObservaciones(data.observaciones ?? '')
+
       const rawDetails = data.detalle_pedido ?? []
-      const mappedDetails: OrderDetailForm[] = rawDetails.map(r => ({ id: r.id, productoId: Number(r.producto_id), productoNombre: (r.producto?.nombre ?? r.producto_name ?? '') as string, cantidad: String(r.cantidad ?? '0'), listaPrecioId: Number(r.lista_precio_id), precioUnitario: String(r.precio_unitario ?? '0') }))
+      const mappedDetails: OrderDetailForm[] = rawDetails.map(r => ({
+        id: r.id,
+        productoId: Number(r.producto_id),
+        productoNombre: (r.producto?.nombre ?? r.producto_name ?? '') as string,
+        cantidad: String(r.cantidad ?? '0'),
+        listaPrecioId: Number(r.lista_precio_id),
+        precioUnitario: String(r.precio_unitario ?? '0'),
+      }))
+
       setDetails(mappedDetails.length ? mappedDetails : [{ productoId: '', cantidad: '1', listaPrecioId: '', precioUnitario: '0' }])
-    } catch (e: unknown) { setFormError(e instanceof Error ? e.message : 'Error desconocido al cargar pedido') }
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Error desconocido al cargar pedido')
+    }
   }
 
-  const closeModal = (): void => { setIsOpen(false); setEditingOrderId(null); setClienteId(''); setFecha(''); setObservaciones(''); setDetails([]); setFormError(null) }
+  const closeModal = (): void => {
+    setIsOpen(false)
+    setEditingOrderId(null)
+    setClienteId('')
+    setClientName('')
+    setClientNameLoading(false)
+    setFecha('')
+    setObservaciones('')
+    setDetails([])
+    setFormError(null)
+  }
 
   const updateDetailField = (idx: number, field: keyof OrderDetailForm, value: OrderDetailForm[keyof OrderDetailForm]): void => {
     setDetails(prev => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
@@ -205,42 +287,77 @@ export default function OrdersPage(): JSX.Element {
     if (!clienteId.trim()) return 'El campo cliente es obligatorio'
     if (details.length === 0) return 'Debe haber al menos un detalle en el pedido'
     for (const [i, d] of details.entries()) {
-      if (d.productoId === '' || d.productoId === null || typeof d.productoId === 'undefined') return `Detalle ${i+1}: producto requerido`
-      if (d.listaPrecioId === '' || d.listaPrecioId === null || typeof d.listaPrecioId === 'undefined') return `Detalle ${i+1}: lista de precio requerida`
-      if (!d.precioUnitario || Number(d.precioUnitario) <= 0) return `Detalle ${i+1}: precio unitario inválido`
-      if (!d.cantidad || Number(d.cantidad) <= 0) return `Detalle ${i+1}: cantidad inválida`
+      if (d.productoId === '' || d.productoId === null || typeof d.productoId === 'undefined') return `Detalle ${i + 1}: producto requerido`
+      if (d.listaPrecioId === '' || d.listaPrecioId === null || typeof d.listaPrecioId === 'undefined') return `Detalle ${i + 1}: lista de precio requerida`
+      if (!d.precioUnitario || Number(d.precioUnitario) <= 0) return `Detalle ${i + 1}: precio unitario inválido`
+      if (!d.cantidad || Number(d.cantidad) <= 0) return `Detalle ${i + 1}: cantidad inválida`
     }
     return null
   }
 
   const saveChanges = async (): Promise<void> => {
     const err = validateForm()
-    if (err) { setFormError(err); return }
+    if (err) {
+      setFormError(err)
+      return
+    }
     if (!editingOrderId) return
-    setSaving(true); setFormError(null)
-    const payload = { cliente_id: Number(clienteId), fecha: fecha ? new Date(fecha).toISOString() : undefined, observaciones: observaciones || null, detalle_pedido: details.map(d => ({ id: d.id ?? undefined, producto_id: Number(d.productoId), cantidad: d.cantidad, lista_precio_id: Number(d.listaPrecioId), precio_unitario: d.precioUnitario })) }
+    setSaving(true)
+    setFormError(null)
+    const payload = {
+      cliente_id: Number(clienteId),
+      fecha: fecha ? new Date(fecha).toISOString() : undefined,
+      observaciones: observaciones || null,
+      detalle_pedido: details.map(d => ({
+        id: d.id ?? undefined,
+        producto_id: Number(d.productoId),
+        cantidad: d.cantidad,
+        lista_precio_id: Number(d.listaPrecioId),
+        precio_unitario: d.precioUnitario,
+      })),
+    }
+
     try {
-      const res = await fetch(`/api/orders/${editingOrderId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch(`/api/orders/${editingOrderId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
       if (!res.ok) {
         let errMsg = 'Error guardando cambios'
         try {
-          const body = await res.clone().json() as Record<string, unknown>
-          if (body) errMsg = (String((body['error'] ?? body['message']) ?? JSON.stringify(body)))
+          const body = (await res.clone().json()) as Record<string, unknown>
+          if (body) errMsg = String((body['error'] ?? body['message']) ?? JSON.stringify(body))
         } catch {
-          try { const txt = await res.clone().text(); if (txt) errMsg = txt } catch {}
+          try {
+            const txt = await res.clone().text()
+            if (txt) errMsg = txt
+          } catch {
+            /* noop */
+          }
         }
         throw new Error(errMsg)
       }
+
       await loadOrders()
       closeModal()
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : 'Error desconocido al guardar')
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
   // eliminar pedido: abrir confirm dialog
-  const openDeleteConfirm = (orderId: string): void => { setDeletingOrderId(orderId); setIsDeleteOpen(true) }
-  const cancelDelete = (): void => { setIsDeleteOpen(false); setDeletingOrderId(null) }
+  const openDeleteConfirm = (orderId: string): void => {
+    setDeletingOrderId(orderId)
+    setIsDeleteOpen(true)
+  }
+  const cancelDelete = (): void => {
+    setIsDeleteOpen(false)
+    setDeletingOrderId(null)
+  }
 
   const confirmDelete = async (): Promise<void> => {
     if (!deletingOrderId) return
@@ -250,10 +367,15 @@ export default function OrdersPage(): JSX.Element {
       if (!res.ok) {
         let errMsg = 'Error eliminando pedido'
         try {
-          const body = await res.clone().json() as Record<string, unknown> | null
+          const body = (await res.clone().json()) as Record<string, unknown> | null
           if (body) errMsg = String((body['error'] ?? body['message']) ?? JSON.stringify(body))
         } catch {
-          try { const txt = await res.clone().text(); if (txt) errMsg = txt } catch {}
+          try {
+            const txt = await res.clone().text()
+            if (txt) errMsg = txt
+          } catch {
+            /* noop */
+          }
         }
         throw new Error(errMsg)
       }
@@ -263,18 +385,38 @@ export default function OrdersPage(): JSX.Element {
     } catch (e: unknown) {
       console.error(e)
       setFormError(e instanceof Error ? e.message : 'Error eliminando pedido')
-    } finally { setDeleting(false) }
+    } finally {
+      setDeleting(false)
+    }
   }
 
-  if (loading) return (<Layout title="Pedidos"><Center py={20}><Spinner size="xl" /></Center></Layout>)
-  if (error) return (<Layout title="Pedidos"><Center py={20}><Text color="red.500">Error: {error}</Text></Center></Layout>)
+  if (loading) {
+    return (
+      <Layout title="Pedidos">
+        <Center py={20}>
+          <Spinner size="xl" />
+        </Center>
+      </Layout>
+    )
+  }
+  if (error) {
+    return (
+      <Layout title="Pedidos">
+        <Center py={20}>
+          <Text color="red.500">Error: {error}</Text>
+        </Center>
+      </Layout>
+    )
+  }
 
   return (
     <ProtectedRoute>
       <Layout title="Pedidos">
         <VStack spacing={6} align="stretch">
           <HStack>
-            <Button size={actionBtnSize} colorScheme="green" onClick={() => router.push('/orders/new')}>+ Nuevo Pedido</Button>
+            <Button size={actionBtnSize} colorScheme="green" onClick={() => router.push('/orders/new')}>
+              + Nuevo Pedido
+            </Button>
           </HStack>
 
           <Box overflowX="auto">
@@ -287,7 +429,9 @@ export default function OrdersPage(): JSX.Element {
                     <Th>Fecha</Th>
                     <Th>Total</Th>
                     <Th>Estado</Th>
-                    <Th isNumeric={false} textAlign="center">Acciones</Th>
+                    <Th isNumeric={false} textAlign="center">
+                      Acciones
+                    </Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -297,13 +441,23 @@ export default function OrdersPage(): JSX.Element {
                       <Td>Cliente {o.clientId}</Td>
                       <Td>{formatDate(o.dateCreated)}</Td>
                       <Td>${o.total.toFixed(2)}</Td>
-                      <Td><Button size={actionBtnSize} colorScheme={badgeColor(o.estadoPedidoId)} isDisabled>{o.estadoPedidoName}</Button></Td>
+                      <Td>
+                        <Button size={actionBtnSize} colorScheme={badgeColor(o.estadoPedidoId)} isDisabled>
+                          {o.estadoPedidoName}
+                        </Button>
+                      </Td>
                       <Td>
                         <Flex justify="center">
                           <HStack spacing={2}>
-                            <Button size={actionBtnSize} onClick={() => window.open(`/orders/${o.id}/print`, '_blank')}>Imprimir</Button>
-                            <Button size={actionBtnSize} onClick={() => openEditModal(o.id)}>Modificar</Button>
-                            <Button size={actionBtnSize} colorScheme="red" onClick={() => openDeleteConfirm(o.id)}>Eliminar</Button>
+                            <Button size={actionBtnSize} onClick={() => window.open(`/orders/${o.id}/print`, '_blank')}>
+                              Imprimir
+                            </Button>
+                            <Button size={actionBtnSize} onClick={() => openEditModal(o.id)}>
+                              Modificar
+                            </Button>
+                            <Button size={actionBtnSize} colorScheme="red" onClick={() => openDeleteConfirm(o.id)}>
+                              Eliminar
+                            </Button>
                           </HStack>
                         </Flex>
                       </Td>
@@ -317,7 +471,9 @@ export default function OrdersPage(): JSX.Element {
           {orders.length === 0 && (
             <Center py={10} flexDir="column">
               <Text>No hay pedidos registrados</Text>
-              <Button mt={4} size={actionBtnSize} colorScheme="green" onClick={() => router.push('/orders/new')}>Crear Primer Pedido</Button>
+              <Button mt={4} size={actionBtnSize} colorScheme="green" onClick={() => router.push('/orders/new')}>
+                Crear Primer Pedido
+              </Button>
             </Center>
           )}
         </VStack>
@@ -329,12 +485,21 @@ export default function OrdersPage(): JSX.Element {
             <ModalHeader>Modificar Pedido {editingOrderId ? `#${editingOrderId.slice(-6)}` : ''}</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
-              {formError && (<Box mb={4} color="red.600">{formError}</Box>)}
+              {formError && (
+                <Box mb={4} color="red.600">
+                  {formError}
+                </Box>
+              )}
 
               <VStack align="stretch" spacing={4}>
+                {/* <-- Aquí mostramos el NOMBRE en lugar del ID (pero guardamos el ID en clienteId para el payload) */}
                 <FormControl isRequired>
-                  <FormLabel>Cliente ID *</FormLabel>
-                  <Input value={clienteId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClienteId(e.target.value)} isDisabled={saving} />
+                  <FormLabel>Cliente</FormLabel>
+                  <Input
+                    value={clientNameLoading ? 'Cargando...' : clientName || clienteId}
+                    isDisabled={saving}
+                    readOnly
+                  />
                 </FormControl>
 
                 <FormControl>
@@ -437,8 +602,12 @@ export default function OrdersPage(): JSX.Element {
             </ModalBody>
 
             <ModalFooter>
-              <Button mr={3} onClick={closeModal} disabled={saving}>Cancelar</Button>
-              <Button colorScheme="blue" onClick={saveChanges} isLoading={saving}>Guardar Cambios</Button>
+              <Button mr={3} onClick={closeModal} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button colorScheme="blue" onClick={saveChanges} isLoading={saving}>
+                Guardar Cambios
+              </Button>
             </ModalFooter>
           </ModalContent>
         </Modal>
