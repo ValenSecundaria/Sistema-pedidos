@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import {
   VStack,
   Button,
@@ -34,193 +33,247 @@ import {
   Heading,
   Spinner,
   Center,
+  useToast,
 } from "@chakra-ui/react"
-
-
 
 import { ProtectedRoute } from "../components/ProtectedRoute"
 import { Layout } from "../components/layout"
-import type { Product, Category , RawProduct} from "../types"
+import type { Product, Category, RawProduct } from "../types"
 
-export default function ProductsPage() {
+type ProductForm = {
+  nombre: string
+  descripcion?: string
+  unidad_medida?: string
+  categoria_id?: number | null
+  stock?: number | null
+  precio_unitario: number
+}
+
+export default function ProductsPage(): JSX.Element {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [priceLists, setPriceLists] = useState<{ id: number; nombre: string }[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
 
-  const { isOpen, onOpen, onClose } = useDisclosure()
-
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    categoria_id: null as number | null,
-    priceNormal: 0,
-    pricePremium: 0,
-    saleType_id: null as number | null,
+  const { isOpen: isAddOpen, onOpen: onAddOpen, onClose: onAddClose } = useDisclosure()
+  const [addForm, setAddForm] = useState<ProductForm>({
+    nombre: "",
+    descripcion: "",
+    unidad_medida: "",
+    categoria_id: null,
+    stock: null,
+    precio_unitario: 0,
   })
 
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<ProductForm>({
+    nombre: "",
+    descripcion: "",
+    unidad_medida: "",
+    categoria_id: null,
+    stock: null,
+    precio_unitario: 0,
+  })
+  const [editLoading, setEditLoading] = useState(false)
+
+  const toast = useToast()
   const isMobile = useBreakpointValue({ base: true, md: false })
 
-  const fetchProducts = async (page: number) => {
+  const validateProductForm = (f: ProductForm): string | null => {
+    if (!f.nombre || !String(f.nombre).trim()) return "El nombre del producto es obligatorio"
+    if (!Number.isFinite(Number(f.precio_unitario))) return "El precio debe ser un número válido"
+    if (Number(f.precio_unitario) < 0) return "El precio no puede ser negativo"
+    if (f.categoria_id == null) return "La categoría es obligatoria"
+    return null
+  }
+
+  const fetchProducts = async (pageNum = 1) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/products?page=${page}&limit=10`)
-      if (res.ok) {
-        const data: { productos: RawProduct[]; totalPages: number; page: number } = await res.json()
-
-        console.log("Respuesta completa de productos:", data)
-        console.log("Solo productos:", data.productos)
-
-        // Verificamos shape:
-        if (data.productos.length > 0) {
-          console.log("Keys del primer producto:", Object.keys(data.productos[0]))
-          console.log("Primer producto crudo:", data.productos[0])
-        }
-
-        // Transformación usando las claves exactas:
-        const transformedProducts: Product[] = data.productos.map(p => ({
-          id: String(p.id),
-          name: p.name,
-          description: p.description ?? "",
-          category: p.category ?? "",
-          priceNormal: typeof p.priceNormal === "number" ? p.priceNormal : 0,
-          pricePremium: 0,   // si luego quieres asignarle valor, cámbialo aquí
-          saleType: "",      // igual para saleType
-        }))
-
-        console.log("Productos transformados:", transformedProducts)
-
-        setProducts(transformedProducts)
-        setTotalPages(data.totalPages)
-        setPage(data.page)
-      } else {
-        console.error("Fetch falló con status", res.status)
-      }
+      const res = await fetch(`/api/products?page=${pageNum}&limit=10`)
+      if (!res.ok) throw new Error("Error al obtener productos")
+      const data: { productos: RawProduct[]; totalPages: number; page: number } = await res.json()
+      const transformed: Product[] = data.productos.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        description: p.description ?? "",
+        category: p.category ?? "",
+        priceNormal: typeof p.priceNormal === "number" ? p.priceNormal : 0,
+        pricePremium: 0,
+        saleType: "",
+      }))
+      setProducts(transformed)
+      setTotalPages(data.totalPages)
+      setPage(data.page)
     } catch (err) {
-      console.error("Error al obtener productos:", err)
+      console.error(err)
+      toast({ title: "Error", description: "No se pudieron cargar productos", status: "error" })
     } finally {
       setLoading(false)
     }
   }
 
-
   useEffect(() => {
     fetchProducts(page)
-
-    const fetchCategories = async () => {
-      const res = await fetch("/api/categories")
-      if (res.ok) setCategories(await res.json())
-    }
-
-    const fetchPriceLists = async () => {
-      const res = await fetch("/api/list_box")
-      if (res.ok) setPriceLists(await res.json())
-    }
-
-    fetchCategories()
-    fetchPriceLists()
+    ;(async () => {
+      try {
+        const rcat = await fetch("/api/categories")
+        if (rcat.ok) setCategories(await rcat.json())
+      } catch (e) {
+        console.error("Error cargando categorías:", e)
+      }
+    })()
   }, [page])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const payload = {
-      nombre: formData.name,
-      descripcion: formData.description || null,
-      categoria_id: formData.categoria_id,
-      precio_unitario: formData.priceNormal,
-      saleType_id: formData.saleType_id,
-      pricePremium: formData.pricePremium,
+    const err = validateProductForm(addForm)
+    if (err) {
+      toast({ title: "Formulario inválido", description: err, status: "warning" })
+      return
+    }
+    try {
+      const payload = { ...addForm }
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "Error creando producto")
+        throw new Error(txt || "No se pudo crear producto")
+      }
+
+      toast({ title: "Creado", description: "Producto creado correctamente", status: "success" })
+      onAddClose()
+      setAddForm({ nombre: "", descripcion: "", unidad_medida: "", categoria_id: null, stock: null, precio_unitario: 0 })
+      await fetchProducts(1)
+      setPage(1)
+    } catch (err) {
+      console.error(err)
+      toast({ title: "Error", description: (err as Error).message || "No se pudo crear el producto", status: "error" })
+    }
+  }
+
+  const openEditModal = async (id: string) => {
+    setEditingId(id)
+    setEditLoading(true)
+    onEditOpen()
+    try {
+      const res = await fetch(`/api/products/${id}`)
+      if (!res.ok) throw new Error("No se pudo obtener producto")
+      const data = await res.json()
+      setEditForm({
+        nombre: data.nombre ?? "",
+        descripcion: data.descripcion ?? "",
+        unidad_medida: data.unidad_medida ?? "",
+        categoria_id: data.categoria_id ?? null,
+        stock: data.stock ?? null,
+        precio_unitario: Number.isFinite(Number(data.precio_unitario)) ? Number(data.precio_unitario) : 0,
+      })
+    } catch (err) {
+      console.error(err)
+      toast({ title: "Error", description: "No se pudo cargar el producto", status: "error" })
+      onEditClose()
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+
+    const err = validateProductForm(editForm)
+    if (err) {
+      toast({ title: "Fo rmulario inválido", description: err, status: "warning" })
+      return
     }
 
-    await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-
-    await fetchProducts(1)
-
-    setFormData({
-      name: "",
-      description: "",
-      categoria_id: null,
-      priceNormal: 0,
-      pricePremium: 0,
-      saleType_id: null,
-    })
-    onClose()
+    setEditLoading(true)
+    try {
+      const payload = { ...editForm }
+      const res = await fetch(`/api/products/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "Error al actualizar")
+        throw new Error(txt || "Error al actualizar")
+      }
+      toast({ title: "Guardado", description: "Producto actualizado", status: "success" })
+      onEditClose()
+      setEditingId(null)
+      await fetchProducts(page)
+    } catch (err) {
+      console.error(err)
+      toast({ title: "Error", description: (err as Error).message || "Error al guardar", status: "error" })
+    } finally {
+      setEditLoading(false)
+    }
   }
+
+
+ const tableSize: "sm" | "lg" | undefined = useBreakpointValue({ base: "sm", md: "lg" });
+ const actionSize: "xs" | "sm" | undefined = useBreakpointValue({ base: "xs", md: "sm" });
+
 
   return (
     <ProtectedRoute>
       <Layout title="Productos">
         <VStack spacing={6} align="stretch">
-          <Button onClick={onOpen} size="xl" colorScheme="green" h="70px" fontSize="20px">
+          <Button onClick={onAddOpen} size="xl" colorScheme="green" h="70px" fontSize="20px">
             ➕ Agregar Nuevo Producto
           </Button>
 
-          {/* 🔄 Mostrar Spinner si está cargando */}
           {loading ? (
-            <Center py={20}>
-              <Spinner size="xl" thickness="4px" color="green.500" />
-            </Center>
+            <Center py={20}><Spinner size="xl" /></Center>
           ) : isMobile ? (
             <VStack spacing={4}>
               {products.length === 0 ? (
-                <Card w="full">
-                  <CardBody textAlign="center" py={12}>
-                    <Text fontSize="xl" color="gray.500">
-                      No hay productos registrados
-                    </Text>
-                  </CardBody>
-                </Card>
+                <Card w="full"><CardBody textAlign="center" py={12}><Text fontSize="xl" color="gray.500">No hay productos registrados</Text></CardBody></Card>
               ) : (
-                products.map((product) => (
-                  <Card key={product.id} w="full">
-                    <CardBody>
-                      <VStack align="start" spacing={3}>
-                        <Heading size="md" color="brand.600">
-                          {product.name}
-                        </Heading>
-                        <Text><strong>Categoría:</strong> {product.category}</Text>
-                        <Text color="green.600">
-                          <strong>Precio Normal:</strong> ${product.priceNormal.toFixed(2)}
-                        </Text>
-                        <Text color="blue.600">
-                          <strong>Precio Premium:</strong> ${product.pricePremium.toFixed(2)}
-                        </Text>
-                        <Text><strong>Tipo:</strong> {product.saleType}</Text>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+                products.map(prod => (
+                  <Card key={prod.id}><CardBody>
+                    <VStack align="start" spacing={3}>
+                      <Heading size="md">{prod.name}</Heading>
+                      <Text><strong>Categoría:</strong> {prod.category}</Text>
+                      <Text color="green.600"><strong>Precio:</strong> ${prod.priceNormal.toFixed(2)}</Text>
+                      <HStack>
+                        <Button size={actionSize} onClick={() => openEditModal(prod.id)}>Modificar</Button>
+                      </HStack>
+                    </VStack>
+                  </CardBody></Card>
                 ))
               )}
             </VStack>
           ) : (
             <Card>
-              <CardBody p={0}>
+              <CardBody>
                 <TableContainer>
-                  <Table variant="simple">
+                  <Table variant="simple" size={tableSize}>
                     <Thead bg="gray.50">
                       <Tr>
                         <Th>Nombre</Th>
                         <Th>Categoría</Th>
                         <Th isNumeric>Precio Unitario</Th>
-                        {/* <Th isNumeric>Precio Premium</Th>  // eliminar o comentar */}
-                        {/* <Th>Tipo de Venta</Th>  // eliminar o comentar */}
+                        <Th textAlign="center">Acciones</Th>
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {products.map((product) => (
-                        <Tr key={product.id}>
-                          <Td>{product.name}</Td>
-                          <Td>{product.category}</Td>
-                          <Td isNumeric>${product.priceNormal.toFixed(2)}</Td>
-                          {/* <Td isNumeric>${product.pricePremium.toFixed(2)}</Td> */}
-                          {/* <Td>{product.saleType}</Td> */}
+                      {products.map(prod => (
+                        <Tr key={prod.id}>
+                          <Td>{prod.name}</Td>
+                          <Td>{prod.category}</Td>
+                          <Td isNumeric>${prod.priceNormal.toFixed(2)}</Td>
+                          <Td>
+                            <HStack justify="center">
+                              <Button size={actionSize} onClick={() => openEditModal(prod.id)}>Modificar</Button>
+                            </HStack>
+                          </Td>
                         </Tr>
                       ))}
                     </Tbody>
@@ -231,105 +284,62 @@ export default function ProductsPage() {
           )}
 
           {/* Pagination */}
-          <HStack justify="center" spacing={4}>
-            <Button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-              Anterior
-            </Button>
+          <HStack justify="center">
+            <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
             <Text>Página {page} de {totalPages}</Text>
-            <Button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-              Siguiente
-            </Button>
+            <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Siguiente</Button>
           </HStack>
 
-          {/* Modal */}
-          <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "xl" }}>
+          {/* ADD Modal */}
+          <Modal isOpen={isAddOpen} onClose={onAddClose} size={{ base: "full", md: "xl" }}>
             <ModalOverlay />
-            <ModalContent mx={{ base: 0, md: 4 }} my={{ base: 0, md: 16 }}>
-              <ModalHeader fontSize="2xl" fontWeight="700">Agregar Nuevo Producto</ModalHeader>
-              <ModalCloseButton size="lg" />
+            <ModalContent>
+              <ModalHeader>Agregar Nuevo Producto</ModalHeader>
+              <ModalCloseButton />
               <ModalBody pb={8}>
-                <form onSubmit={handleSubmit}>
-                  <VStack spacing={6}>
-                    <FormControl isRequired>
-                      <FormLabel>Nombre del Producto</FormLabel>
-                      <Input
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      />
-                    </FormControl>
+                <form onSubmit={handleAddSubmit}>
+                  <VStack spacing={4}>
+                    <FormControl isRequired><FormLabel>Nombre</FormLabel><Input value={addForm.nombre} onChange={e => setAddForm({...addForm, nombre: e.target.value})} /></FormControl>
+                    <FormControl><FormLabel>Descripción</FormLabel><Textarea value={addForm.descripcion} onChange={e => setAddForm({...addForm, descripcion: e.target.value})} /></FormControl>
+                    <FormControl isRequired><FormLabel>Categoría</FormLabel><Select placeholder="Seleccionar" value={addForm.categoria_id ? String(addForm.categoria_id) : ""} onChange={e => setAddForm({...addForm, categoria_id: e.target.value ? Number(e.target.value) : null})}>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </Select></FormControl>
+                    <FormControl isRequired><FormLabel>Precio</FormLabel><NumberInput min={0} precision={2} value={addForm.precio_unitario ?? 0} onChange={(_, val) => setAddForm({...addForm, precio_unitario: val})}><NumberInputField /></NumberInput></FormControl>
 
-                    <FormControl>
-                      <FormLabel>Descripción</FormLabel>
-                      <Textarea
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        minH="100px"
-                      />
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Categoría</FormLabel>
-                      <Select
-                        placeholder="Selecciona una categoría"
-                        value={formData.categoria_id?.toString() || ""}
-                        onChange={(e) => setFormData({ ...formData, categoria_id: parseInt(e.target.value) })}
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Precio Normal</FormLabel>
-                      <NumberInput
-                        value={formData.priceNormal}
-                        onChange={(_, value) => setFormData({ ...formData, priceNormal: value || 0 })}
-                        min={0}
-                        precision={2}
-                      >
-                        <NumberInputField />
-                      </NumberInput>
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Precio Premium</FormLabel>
-                      <NumberInput
-                        value={formData.pricePremium}
-                        onChange={(_, value) => setFormData({ ...formData, pricePremium: value || 0 })}
-                        min={0}
-                        precision={2}
-                      >
-                        <NumberInputField />
-                      </NumberInput>
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Tipo de Venta</FormLabel>
-                      <Select
-                        placeholder="Selecciona un tipo de venta"
-                        value={formData.saleType_id?.toString() || ""}
-                        onChange={(e) => setFormData({ ...formData, saleType_id: parseInt(e.target.value) })}
-                      >
-                        {priceLists.map((pl) => (
-                          <option key={pl.id} value={pl.id}>{pl.nombre}</option>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <HStack spacing={4} w="full" pt={4}>
-                      <Button type="submit" size="lg" colorScheme="green" flex={1}>
-                        Guardar
-                      </Button>
-                      <Button variant="outline" size="lg" onClick={onClose} flex={1}>
-                        Cancelar
-                      </Button>
+                    <HStack w="full">
+                      <Button type="submit" colorScheme="green" flex={1}>Guardar</Button>
+                      <Button variant="outline" onClick={onAddClose} flex={1}>Cancelar</Button>
                     </HStack>
                   </VStack>
                 </form>
               </ModalBody>
             </ModalContent>
           </Modal>
+
+          {/* EDIT Modal */}
+          <Modal isOpen={isEditOpen} onClose={() => { onEditClose(); setEditingId(null) }} size={{ base: "full", md: "xl" }}>
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>Modificar Producto {editingId ? `#${editingId}` : ""}</ModalHeader>
+              <ModalCloseButton />
+              <ModalBody pb={8}>
+                <VStack spacing={4}>
+                  <FormControl isRequired><FormLabel>Nombre</FormLabel><Input value={editForm.nombre} onChange={e => setEditForm({...editForm, nombre: e.target.value})} /></FormControl>
+                  <FormControl><FormLabel>Descripción</FormLabel><Textarea value={editForm.descripcion} onChange={e => setEditForm({...editForm, descripcion: e.target.value})} /></FormControl>
+                  <FormControl isRequired><FormLabel>Categoría</FormLabel><Select placeholder="Seleccionar" value={editForm.categoria_id ? String(editForm.categoria_id) : ""} onChange={e => setEditForm({...editForm, categoria_id: e.target.value ? Number(e.target.value) : null})}>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </Select></FormControl>
+                  <FormControl isRequired><FormLabel>Precio</FormLabel><NumberInput min={0} precision={2} value={editForm.precio_unitario ?? 0} onChange={(_, val) => setEditForm({...editForm, precio_unitario: val})}><NumberInputField /></NumberInput></FormControl>
+
+                  <HStack w="full">
+                    <Button colorScheme="blue" isLoading={editLoading} onClick={saveEdit}>Guardar Cambios</Button>
+                    <Button variant="ghost" onClick={() => { onEditClose(); setEditingId(null) }}>Cancelar</Button>
+                  </HStack>
+                </VStack>
+              </ModalBody>
+            </ModalContent>
+          </Modal>
+
         </VStack>
       </Layout>
     </ProtectedRoute>
