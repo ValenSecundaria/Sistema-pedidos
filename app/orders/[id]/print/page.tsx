@@ -21,6 +21,7 @@ import {
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 
+// Tipos de la orden
 interface OrderItemPrint {
   name: string;
   quantity: number;
@@ -41,20 +42,47 @@ interface OrderPrint {
   date: string;
 }
 
-export default function PrintOrderPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+// params puede ser síncrono o promesa en Next.js
+type MaybePromiseParams = { id: string } | Promise<{ id: string }>;
+
+// Type guard para detectar promesa
+function isPromise<T>(value: unknown): value is Promise<T> {
+  return (
+    !!value &&
+    (typeof value === "object" || typeof value === "function") &&
+    typeof (value as Promise<T>).then === "function"
+  );
+}
+
+export default function PrintOrderPage({ params }: { params: MaybePromiseParams }) {
+  const [id, setId] = useState<string | null>(null);
   const [order, setOrder] = useState<OrderPrint | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Resolver params sin usar `any`
   useEffect(() => {
-    console.log("Fetching order with ID:", params.id);
+    let mounted = true;
+    const resolveParams = async () => {
+      if (isPromise<{ id: string }>(params)) {
+        const resolved = await params;
+        if (mounted) setId(resolved.id);
+      } else {
+        setId(params.id);
+      }
+    };
+    resolveParams();
+    return () => {
+      mounted = false;
+    };
+  }, [params]);
+
+  // Fetch de la orden
+  useEffect(() => {
+    if (!id) return;
     const fetchOrder = async () => {
       setLoading(true);
-      const res = await fetch(`/api/orders/${params.id}/print`);
+      const res = await fetch(`/api/orders/${id}/print`);
       if (res.ok) {
         const data: OrderPrint = await res.json();
         setOrder(data);
@@ -64,7 +92,7 @@ export default function PrintOrderPage({
       setLoading(false);
     };
     fetchOrder();
-  }, [params.id]);
+  }, [id]);
 
   const handlePrint = () => {
     window.print();
@@ -82,7 +110,7 @@ export default function PrintOrderPage({
     return (
       <Center py={20}>
         <Text fontSize="xl" color="red.500">
-          No se encontró el pedido #{params.id}
+          No se encontró el pedido
         </Text>
         <Button mt={4} onClick={() => router.back()}>
           Volver
@@ -130,7 +158,7 @@ export default function PrintOrderPage({
           <Heading size="md">Detalle del Pedido</Heading>
 
           <TableContainer w="full">
-            <Table variant="simple" size="lg">
+            <Table variant="simple" size="sm">
               <Thead>
                 <Tr>
                   <Th>Producto</Th>
@@ -170,7 +198,7 @@ export default function PrintOrderPage({
         </Box>
       </VStack>
 
-      {/* Oculta el botón al imprimir */}
+      {/* Estilos impresión */}
       <style jsx global>{`
         @media print {
           .no-print {
@@ -178,6 +206,10 @@ export default function PrintOrderPage({
           }
           body {
             -webkit-print-color-adjust: exact;
+          }
+          @page {
+            size: auto;
+            margin: 10mm;
           }
         }
       `}</style>
