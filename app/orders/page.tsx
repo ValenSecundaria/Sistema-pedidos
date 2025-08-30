@@ -65,6 +65,7 @@ type Order = {
   total: number
   estadoPedidoId: number
   estadoPedidoName: string
+  clientName?: string
 }
 
 type OrderDetailForm = {
@@ -111,8 +112,8 @@ export default function OrdersPage(): JSX.Element {
   // edit modal
   const [isOpen, setIsOpen] = useState(false)
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null)
-  const [clienteId, setClienteId] = useState<string>('') // mantiene el id para el payload
-  const [clientName, setClientName] = useState<string>('') // nombre a mostrar
+  const [clienteId, setClienteId] = useState<string>('')
+  const [clientName, setClientName] = useState<string>('')
   const [clientNameLoading, setClientNameLoading] = useState<boolean>(false)
   const [fecha, setFecha] = useState<string>('')
   const [observaciones, setObservaciones] = useState<string>('')
@@ -130,14 +131,49 @@ export default function OrdersPage(): JSX.Element {
   const tableSize = useBreakpointValue<'sm' | 'md' | 'lg'>({ base: 'sm', md: 'lg', lg: 'lg' })
   const actionBtnSize = (useBreakpointValue({ base: 'xs', md: 'sm' }) ?? 'sm') as 'xs' | 'sm'
 
-  // carga inicial de pedidos
+  // Helper: formato fecha
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+  // Cargar pedidos y resolver nombres por cliente
   const loadOrders = async (): Promise<void> => {
     setLoading(true)
     try {
       const res = await fetch('/api/orders')
       if (!res.ok) throw new Error('Error cargando pedidos')
       const data = (await res.json()) as Order[]
-      setOrders(data)
+
+      // obtener clientIds únicos
+      const uniqueClientIds = Array.from(new Set(data.map((o) => o.clientId).filter(Boolean)))
+
+      // cache local para nombres
+      const nameMap: Record<string, string> = {}
+
+      // parallel requests para nombres (cada id -> /api/clients/client-name/:id)
+      await Promise.all(
+        uniqueClientIds.map(async (id) => {
+          try {
+            const r = await fetch(`/api/clients/client-name/${id}`)
+            if (!r.ok) {
+              nameMap[id] = `Cliente #${id}`
+              return
+            }
+            const body = (await r.json()) as ClientNameResp
+            nameMap[id] = body?.name ?? `Cliente #${id}`
+          } catch (e) {
+            nameMap[id] = `Cliente #${id}`
+          }
+        })
+      )
+
+      const mapped = data.map((o) => ({ ...o, clientName: nameMap[o.clientId] ?? `Cliente #${o.clientId}` }))
+      setOrders(mapped)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
@@ -149,7 +185,7 @@ export default function OrdersPage(): JSX.Element {
     loadOrders()
   }, [])
 
-  // obtener productos para selects (usa tu endpoint paginado en producción)
+  // cargar productos para selects
   const loadProducts = async (): Promise<void> => {
     setProductsLoading(true)
     try {
@@ -160,7 +196,7 @@ export default function OrdersPage(): JSX.Element {
         const res = await fetch(`/api/products?page=${page}&limit=${perPage}`)
         if (!res.ok) throw new Error('No se pudieron cargar productos')
         const body = (await res.json()) as ProductsApiResponse
-        const items = (body.productos ?? []).map(p => ({ id: Number(p.id), nombre: p.name }))
+        const items = (body.productos ?? []).map((p) => ({ id: Number(p.id), nombre: p.name }))
         all.push(...items)
         const totalPages = typeof body.totalPages === 'number' ? body.totalPages : 1
         if (page >= totalPages) break
@@ -182,16 +218,7 @@ export default function OrdersPage(): JSX.Element {
 
   const badgeColor = (id: number) => (id === 1 ? 'yellow' : id === 2 ? 'green' : 'red')
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-
-  // helper: fetch nombre del cliente por id (usa tu endpoint inmutable)
+  // obtener nombre de cliente para modal de edición (single)
   const fetchClientName = async (id: string) => {
     if (!id) {
       setClientName('')
@@ -201,7 +228,6 @@ export default function OrdersPage(): JSX.Element {
     try {
       const res = await fetch(`/api/clients/client-name/${id}`)
       if (!res.ok) {
-        // fallback a mostrar el id si no encuentra nombre
         setClientName(`Cliente #${id}`)
         return
       }
@@ -215,7 +241,7 @@ export default function OrdersPage(): JSX.Element {
     }
   }
 
-  // open edit modal: usa endpoint /api/orders/update/:id
+  // abrir modal para editar pedido
   const openEditModal = async (orderId: string): Promise<void> => {
     setFormError(null)
     setSaving(false)
@@ -227,18 +253,15 @@ export default function OrdersPage(): JSX.Element {
       if (!res.ok) throw new Error('No se pudo obtener los datos completos del pedido')
       const data = (await res.json()) as OrderUpdateApiResponse
 
-      // set cliente id (para payload)
       const clienteVal = data.cliente_id ?? undefined
       setClienteId(String(clienteVal ?? ''))
 
-      // traer nombre asociado al id (endpoint que tenés en producción)
       if (clienteVal != null) {
         await fetchClientName(String(clienteVal))
       } else {
         setClientName('')
       }
 
-      // fecha -> input datetime-local
       const fechaVal = data.fecha ?? undefined
       if (fechaVal) {
         const d = new Date(fechaVal)
@@ -249,7 +272,7 @@ export default function OrdersPage(): JSX.Element {
       setObservaciones(data.observaciones ?? '')
 
       const rawDetails = data.detalle_pedido ?? []
-      const mappedDetails: OrderDetailForm[] = rawDetails.map(r => ({
+      const mappedDetails: OrderDetailForm[] = rawDetails.map((r) => ({
         id: r.id,
         productoId: Number(r.producto_id),
         productoNombre: (r.producto?.nombre ?? r.producto_name ?? '') as string,
@@ -277,11 +300,11 @@ export default function OrdersPage(): JSX.Element {
   }
 
   const updateDetailField = (idx: number, field: keyof OrderDetailForm, value: OrderDetailForm[keyof OrderDetailForm]): void => {
-    setDetails(prev => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
+    setDetails((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
   }
 
-  const addDetailRow = (): void => setDetails(prev => [...prev, { productoId: '', cantidad: '1', listaPrecioId: '', precioUnitario: '0' }])
-  const removeDetailRow = (idx: number): void => setDetails(prev => prev.filter((_, i) => i !== idx))
+  const addDetailRow = (): void => setDetails((prev) => [...prev, { productoId: '', cantidad: '1', listaPrecioId: '', precioUnitario: '0' }])
+  const removeDetailRow = (idx: number): void => setDetails((prev) => prev.filter((_, i) => i !== idx))
 
   const validateForm = (): string | null => {
     if (!clienteId.trim()) return 'El campo cliente es obligatorio'
@@ -308,7 +331,7 @@ export default function OrdersPage(): JSX.Element {
       cliente_id: Number(clienteId),
       fecha: fecha ? new Date(fecha).toISOString() : undefined,
       observaciones: observaciones || null,
-      detalle_pedido: details.map(d => ({
+      detalle_pedido: details.map((d) => ({
         id: d.id ?? undefined,
         producto_id: Number(d.productoId),
         cantidad: d.cantidad,
@@ -435,10 +458,10 @@ export default function OrdersPage(): JSX.Element {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {orders.map(o => (
+                  {orders.map((o) => (
                     <Tr key={o.id}>
                       <Td>#{o.id.slice(-6)}</Td>
-                      <Td>Cliente {o.clientId}</Td>
+                      <Td>{o.clientName ?? `Cliente #${o.clientId}`}</Td>
                       <Td>{formatDate(o.dateCreated)}</Td>
                       <Td>${o.total.toFixed(2)}</Td>
                       <Td>
@@ -478,7 +501,7 @@ export default function OrdersPage(): JSX.Element {
           )}
         </VStack>
 
-        {/* --- Edit Modal --- */}
+        {/* Edit modal (igual que tenías) */}
         <Modal isOpen={isOpen} onClose={closeModal} size="6xl">
           <ModalOverlay />
           <ModalContent>
@@ -492,14 +515,9 @@ export default function OrdersPage(): JSX.Element {
               )}
 
               <VStack align="stretch" spacing={4}>
-                {/* <-- Aquí mostramos el NOMBRE en lugar del ID (pero guardamos el ID en clienteId para el payload) */}
                 <FormControl isRequired>
                   <FormLabel>Cliente</FormLabel>
-                  <Input
-                    value={clientNameLoading ? 'Cargando...' : clientName || clienteId}
-                    isDisabled={saving}
-                    readOnly
-                  />
+                  <Input value={clientNameLoading ? 'Cargando...' : clientName || clienteId} isDisabled={saving} readOnly />
                 </FormControl>
 
                 <FormControl>
@@ -538,20 +556,21 @@ export default function OrdersPage(): JSX.Element {
                           <Tr key={i}>
                             <Td>{i + 1}</Td>
                             <Td>
-                              {/* Select con todos los productos ordenados alfabéticamente */}
                               <Select
                                 placeholder={productsLoading ? 'Cargando productos...' : '-- seleccionar producto --'}
                                 value={d.productoId !== '' ? String(d.productoId) : ''}
                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                                   const id = e.target.value ? Number(e.target.value) : ''
-                                  const prod = products.find(p => p.id === id)
+                                  const prod = products.find((p) => p.id === id)
                                   updateDetailField(i, 'productoId', id as number | '')
                                   updateDetailField(i, 'productoNombre', prod?.nombre ?? '')
                                 }}
                                 isDisabled={saving || productsLoading}
                               >
-                                {products.map(p => (
-                                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                                {products.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.nombre}
+                                  </option>
                                 ))}
                               </Select>
                             </Td>
@@ -563,7 +582,6 @@ export default function OrdersPage(): JSX.Element {
                             </Td>
 
                             <Td>
-                              {/* Lista precio: solo dos opciones */}
                               <Select
                                 placeholder="-- seleccionar --"
                                 value={d.listaPrecioId !== '' ? String(d.listaPrecioId) : ''}
@@ -612,7 +630,7 @@ export default function OrdersPage(): JSX.Element {
           </ModalContent>
         </Modal>
 
-        {/* --- Delete confirmation dialog --- */}
+        {/* Delete confirmation */}
         <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={cancelDelete} isCentered>
           <AlertDialogOverlay>
             <AlertDialogContent>

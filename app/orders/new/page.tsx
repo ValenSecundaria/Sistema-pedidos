@@ -39,7 +39,9 @@ import {
   useBreakpointValue,
   SimpleGrid,
   Box,
+  IconButton,
 } from "@chakra-ui/react"
+import { CloseIcon } from "@chakra-ui/icons"
 import { useRouter } from "next/navigation"
 
 import { Layout } from "@/app/components/layout"
@@ -294,6 +296,11 @@ export default function NewOrderPage(): JSX.Element {
     }, 0)
   }
 
+  // NEW: eliminar item del pedido en construcción
+  const removeItem = (indexToRemove: number): void => {
+    setOrderItems((prev) => prev.filter((_, i) => i !== indexToRemove))
+  }
+
   // Save order -> enviar unitPrice si customPrice presente (null otherwise)
   const saveOrder = async (): Promise<void> => {
     if (!selectedClient) {
@@ -470,6 +477,7 @@ export default function NewOrderPage(): JSX.Element {
                             <Th>Cantidad</Th>
                             <Th>Precio Unit.</Th>
                             <Th>Subtotal</Th>
+                            <Th textAlign="center">Acciones</Th> {/* nueva columna */}
                           </Tr>
                         </Thead>
                         <Tbody>
@@ -487,6 +495,17 @@ export default function NewOrderPage(): JSX.Element {
                                 <Td>{item.quantity}</Td>
                                 <Td>${price.toFixed(2)}</Td>
                                 <Td>${subtotal.toFixed(2)}</Td>
+                                <Td textAlign="center">
+                                  <IconButton
+                                    aria-label={`Eliminar ${product.name}`}
+                                    icon={<CloseIcon />}
+                                    size="sm"
+                                    colorScheme="red"
+                                    variant="ghost"
+                                    onClick={() => removeItem(index)}
+                                    title="Eliminar ítem"
+                                  />
+                                </Td>
                               </Tr>
                             )
                           })}
