@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: myapp_web
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      # 🔹 Para conectar con la DB local (contenedor Postgres)
+      # DATABASE_URL: postgresql://postgres:Postgres912@db:5432/mydatabase
+
+      # 🔹 Para producción (remoto en Neon), cambia esta variable:
+      DATABASE_URL: postgresql://neondb_owner:npg_iGHdu2myPt9A@ep-late-boat-aecjlaih.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  db:
+    image: postgres:16
+    container_name: myapp_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Postgres912
+      POSTGRES_DB: sistema-pedidos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

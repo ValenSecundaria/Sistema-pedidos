@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Gestión de Pedidos y Clientes
 
-## Getting Started
+Este proyecto es una aplicación web integral diseñada para optimizar la gestión comercial de un negocio. Permite administrar eficientemente pedidos, clientes, productos y listas de precios, ofreciendo una interfaz moderna y responsiva adaptada tanto para dispositivos móviles como de escritorio.
 
-First, run the development server:
+## 📋 Descripción General
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+El sistema actúa como un centro de control para las operaciones diarias, facilitando la toma de pedidos y el seguimiento de clientes. Está construido con tecnologías modernas para asegurar rapidez, escalabilidad y una excelente experiencia de usuario. Su arquitectura soporta múltiples listas de precios y tipos de clientes, lo que lo hace flexible para diferentes modelos de negocio.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Características Principales
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🛒 Gestión de Pedidos
+- **Creación de Pedidos:** Interfaz intuitiva para generar nuevos pedidos rápidamente.
+- **Seguimiento:** Visualización de pedidos del día y gestión de estados (pendientes, completados, etc.).
+- **Detalles:** Manejo de líneas de pedido con cálculos automáticos de subtotales y totales.
+- **Remitos:** Generación de remitos asociados a los pedidos.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 📦 Gestión de Productos
+- **Catálogo:** Administración completa de productos (alta, baja, modificación).
+- **Categorización:** Organización de productos por categorías.
+- **Precios Dinámicos:** Soporte para múltiples listas de precios y precios diferenciados por tipo de cliente.
+- **Control de Stock:** Monitoreo de existencias.
 
-## Learn More
+### 👥 Gestión de Clientes
+- **Base de Datos:** Registro detallado de clientes con información de contacto y ubicación.
+- **Segmentación:** Clasificación de clientes por tipos para aplicar estrategias de precios específicas.
+- **Historial:** Visualización de la frecuencia de compra y pedidos anteriores.
 
-To learn more about Next.js, take a look at the following resources:
+### 💻 Experiencia de Usuario (UX/UI)
+- **Diseño Responsivo:** Interfaz adaptada a móviles (PWA) y escritorio.
+- **Dashboard:** Panel principal con accesos directos a las funciones más utilizadas.
+- **Feedback Visual:** Uso de notificaciones y estados visuales claros.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Tecnologías Utilizadas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+El proyecto está construido sobre un stack tecnológico robusto y moderno:
 
-## Deploy on Vercel
+- **Frontend / Framework:** [Next.js 15](https://nextjs.org/) (App Router)
+- **Lenguaje:** [TypeScript](https://www.typescriptlang.org/)
+- **Base de Datos:** [PostgreSQL](https://www.postgresql.org/)
+- **ORM:** [Prisma](https://www.prisma.io/)
+- **Estilos & UI:** 
+  - [Chakra UI](https://chakra-ui.com/) (Componentes y diseño)
+  - [Emotion](https://emotion.sh/) (CSS-in-JS)
+  - [Framer Motion](https://www.framer.com/motion/) (Animaciones)
+- **Autenticación:** [NextAuth.js](https://next-auth.js.org/)
+- **Manejo de Fechas:** [Luxon](https://moment.github.io/luxon/)
+- **PWA:** Soporte para Progressive Web App con `next-pwa`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ⚙️ Instalación y Configuración
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sigue estos pasos para ejecutar el proyecto localmente:
+
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone <url-del-repositorio>
+    cd sistema-pedidos
+    ```
+
+2.  **Instalar dependencias:**
+    ```bash
+    npm install
+    ```
+
+3.  **Configurar variables de entorno:**
+    Crea un archivo `.env` en la raíz del proyecto y configura la conexión a tu base de datos PostgreSQL y otras variables necesarias (ver `.env.example` si existe o basarse en `schema.prisma`).
+    ```env
+    DATABASE_URL="postgresql://usuario:password@localhost:5432/nombre_db?schema=public"
+    ```
+
+4.  **Inicializar la base de datos:**
+    Ejecuta las migraciones de Prisma para crear las tablas.
+    ```bash
+    npx prisma migrate dev
+    ```
+
+5.  **Ejecutar el servidor de desarrollo:**
+    ```bash
+    npm run dev
+    ```
+
+6.  **Acceder a la aplicación:**
+    Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+## 📂 Estructura del Proyecto
+
+- `/app`: Contiene las páginas y rutas de la aplicación (Next.js App Router).
+  - `/api`: Endpoints de la API backend.
+  - `/orders`, `/products`, `/clients`: Módulos principales de la UI.
+- `/components`: Componentes reutilizables de React.
+- `/prisma`: Esquema de la base de datos y migraciones.
+- `/public`: Archivos estáticos.
+- `/lib` / `/utils`: Funciones de utilidad y configuraciones compartidas.
+
+## 📄 Licencia
+
+Este proyecto es de uso privado/interno.
